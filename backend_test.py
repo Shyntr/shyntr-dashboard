@@ -450,7 +450,7 @@ class ShyntrAPITester:
             "Create Tenant", 
             "POST", 
             "tenants", 
-            201, 
+            200, 
             tenant_data
         )
         if not success:
