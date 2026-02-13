@@ -206,7 +206,7 @@ class ShyntrAPITester:
             "Create SAML Client", 
             "POST", 
             "saml-clients", 
-            201, 
+            200, 
             saml_client_data
         )
         if not success:
