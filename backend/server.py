@@ -181,7 +181,7 @@ async def create_client(client_data: OAuth2ClientCreate):
     await db.oauth2_clients.insert_one(client_dict)
     
     # Return without _id
-    del client_dict["_id"] if "_id" in client_dict else None
+    client_dict.pop("_id", None)
     return client_dict
 
 @api_router.put("/clients/{client_id}", response_model=OAuth2Client)
