@@ -74,13 +74,13 @@ class ShyntrAPITester:
             200
         )
         if success:
-            required_fields = ['total_clients', 'total_saml_connections', 'total_oidc_connections', 
-                             'public_clients', 'confidential_clients', 'recent_activity']
+            required_fields = ['total_oidc_clients', 'total_saml_clients', 'total_saml_connections', 
+                             'total_oidc_connections', 'total_tenants', 'public_clients', 'confidential_clients', 'recent_activity']
             for field in required_fields:
                 if field not in response:
                     print(f"❌ Missing field: {field}")
                     return False
-            print(f"   Stats: {response['total_clients']} clients, {response['total_saml_connections']} SAML, {response['total_oidc_connections']} OIDC")
+            print(f"   Stats: {response['total_oidc_clients']} OIDC clients, {response['total_saml_clients']} SAML clients, {response['total_saml_connections']} SAML connections, {response['total_oidc_connections']} OIDC connections, {response['total_tenants']} tenants")
         return success
 
     # OAuth2 Client Tests
