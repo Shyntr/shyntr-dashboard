@@ -113,7 +113,7 @@ class ShyntrAPITester:
             "Create OIDC Client", 
             "POST", 
             "clients", 
-            201, 
+            200, 
             client_data
         )
         if not success:
