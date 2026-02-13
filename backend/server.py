@@ -232,7 +232,7 @@ async def create_saml_connection(connection_data: SAMLConnectionCreate):
         raise HTTPException(status_code=400, detail="Invalid XML: IDP metadata must be valid XML")
     
     await db.saml_connections.insert_one(connection_dict)
-    del connection_dict["_id"] if "_id" in connection_dict else None
+    connection_dict.pop("_id", None)
     return connection_dict
 
 @api_router.put("/saml-connections/{connection_id}", response_model=SAMLConnection)
@@ -283,7 +283,7 @@ async def create_oidc_connection(connection_data: OIDCConnectionCreate):
     connection_dict["updated_at"] = timestamp
     
     await db.oidc_connections.insert_one(connection_dict)
-    del connection_dict["_id"] if "_id" in connection_dict else None
+    connection_dict.pop("_id", None)
     return connection_dict
 
 @api_router.put("/oidc-connections/{connection_id}", response_model=OIDCConnection)
