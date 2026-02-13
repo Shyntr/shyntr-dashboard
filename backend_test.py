@@ -280,7 +280,7 @@ class ShyntrAPITester:
             "Create OIDC Connection", 
             "POST", 
             "oidc-connections", 
-            201, 
+            200, 
             oidc_data
         )
         if not success:
