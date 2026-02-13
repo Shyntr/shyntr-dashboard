@@ -83,61 +83,64 @@ class ShyntrAPITester:
             print(f"   Stats: {response['total_oidc_clients']} OIDC clients, {response['total_saml_clients']} SAML clients, {response['total_saml_connections']} SAML connections, {response['total_oidc_connections']} OIDC connections, {response['total_tenants']} tenants")
         return success
 
-    # OAuth2 Client Tests
-    def test_oauth2_clients(self) -> bool:
-        """Test complete OAuth2 client CRUD operations"""
-        print("\n=== OAuth2 CLIENT TESTS ===")
+    # OIDC Client Tests (Applications)
+    def test_oidc_clients(self) -> bool:
+        """Test complete OIDC client CRUD operations"""
+        print("\n=== OIDC CLIENT TESTS ===")
         
-        # 1. List clients (should be empty initially or return existing)
-        success, clients = self.run_test("List OAuth2 Clients", "GET", "clients", 200)
+        # 1. List OIDC clients (should be empty initially or return existing)
+        success, clients = self.run_test("List OIDC Clients", "GET", "clients", 200)
         if not success:
             return False
 
-        # 2. Create a client
+        # 2. Create an OIDC client
         client_data = {
-            "id": f"test-client-{datetime.now().strftime('%H%M%S')}",
+            "client_id": f"test-oidc-client-{datetime.now().strftime('%H%M%S')}",
+            "name": "Test OIDC Application",
             "tenant_id": "default",
             "redirect_uris": ["https://app.example.com/callback"],
+            "allowed_cors_origins": ["https://app.example.com"],
             "grant_types": ["authorization_code", "refresh_token"],
             "response_types": ["code"],
             "scopes": ["openid", "profile", "email"],
+            "audience": [],
             "public": False,
             "enforce_pkce": True,
-            "allowed_cors_origins": ["https://app.example.com"]
+            "auth_method": "client_secret_basic"
         }
         
         success, created_client = self.run_test(
-            "Create OAuth2 Client", 
+            "Create OIDC Client", 
             "POST", 
             "clients", 
-            200, 
+            201, 
             client_data
         )
         if not success:
             return False
         
-        self.created_resources['clients'].append(created_client['id'])
-        print(f"   Created client ID: {created_client['id']}")
+        self.created_resources['oidc_clients'].append(created_client['client_id'])
+        print(f"   Created OIDC client ID: {created_client['client_id']}")
 
-        # 3. Get specific client
+        # 3. Get specific OIDC client
         success, retrieved_client = self.run_test(
-            "Get OAuth2 Client", 
+            "Get OIDC Client", 
             "GET", 
-            f"clients/{created_client['id']}", 
+            f"clients/{created_client['client_id']}", 
             200
         )
-        if not success or retrieved_client['id'] != created_client['id']:
+        if not success or retrieved_client['client_id'] != created_client['client_id']:
             return False
 
-        # 4. Update client
+        # 4. Update OIDC client
         updated_data = client_data.copy()
         updated_data['scopes'] = ["openid", "profile", "email", "offline_access"]
         updated_data['public'] = True
         
         success, updated_client = self.run_test(
-            "Update OAuth2 Client", 
+            "Update OIDC Client", 
             "PUT", 
-            f"clients/{created_client['id']}", 
+            f"clients/{created_client['client_id']}", 
             200, 
             updated_data
         )
@@ -146,29 +149,29 @@ class ShyntrAPITester:
 
         # 5. Verify update
         if updated_client['public'] != True or 'offline_access' not in updated_client['scopes']:
-            print("❌ Client update verification failed")
+            print("❌ OIDC Client update verification failed")
             return False
 
-        # 6. Test client with invalid ID (should fail)
+        # 6. Test duplicate client (should fail)
         success, _ = self.run_test(
-            "Create Duplicate Client", 
+            "Create Duplicate OIDC Client", 
             "POST", 
             "clients", 
             400, 
             client_data
         )
         if not success:
-            print("⚠️  Duplicate client creation should fail with 400")
+            print("⚠️  Duplicate OIDC client creation should fail with 400")
 
-        # 7. Delete client
+        # 7. Delete OIDC client
         success, _ = self.run_test(
-            "Delete OAuth2 Client", 
+            "Delete OIDC Client", 
             "DELETE", 
-            f"clients/{created_client['id']}", 
+            f"clients/{created_client['client_id']}", 
             200
         )
         if success:
-            self.created_resources['clients'].remove(created_client['id'])
+            self.created_resources['oidc_clients'].remove(created_client['client_id'])
         
         return success
 
