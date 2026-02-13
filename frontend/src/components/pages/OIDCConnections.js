@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, GlobeLock, RefreshCw } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Plus, Pencil, Trash2, GlobeLock, RefreshCw, ChevronDown } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Input } from '../ui/input';
@@ -31,9 +31,16 @@ import {
   TableHeader,
   TableRow,
 } from '../ui/table';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '../ui/collapsible';
 import { toast } from 'sonner';
 import { EmptyState } from '../shared/EmptyState';
 import { SecretInput } from '../shared/SecretInput';
+import { ProtocolBadge } from '../shared/ProtocolBadge';
+import { CopyButton } from '../shared/CopyButton';
 import { 
   getOIDCConnections, 
   createOIDCConnection, 
@@ -47,7 +54,10 @@ const defaultConnection = {
   issuer_url: '',
   client_id: '',
   client_secret: '',
-  scopes: ['openid', 'email', 'profile']
+  scopes: ['openid', 'email', 'profile'],
+  authorization_endpoint: '',
+  token_endpoint: '',
+  userinfo_endpoint: ''
 };
 
 export function OIDCConnections() {
@@ -58,6 +68,7 @@ export function OIDCConnections() {
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [formData, setFormData] = useState(defaultConnection);
   const [isEditing, setIsEditing] = useState(false);
+  const [advancedOpen, setAdvancedOpen] = useState(false);
 
   useEffect(() => {
     fetchConnections();
@@ -76,12 +87,14 @@ export function OIDCConnections() {
 
   const handleCreate = () => {
     setFormData(defaultConnection);
+    setAdvancedOpen(false);
     setIsEditing(false);
     setDialogOpen(true);
   };
 
   const handleEdit = (connection) => {
     setFormData(connection);
+    setAdvancedOpen(!!connection.authorization_endpoint || !!connection.token_endpoint || !!connection.userinfo_endpoint);
     setIsEditing(true);
     setDialogOpen(true);
   };
@@ -107,9 +120,8 @@ export function OIDCConnections() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    // Validate
     if (!formData.name.trim()) {
-      toast.error('Connection name is required');
+      toast.error('Provider name is required');
       return;
     }
     if (!formData.issuer_url.trim()) {
@@ -150,28 +162,32 @@ export function OIDCConnections() {
   };
 
   const getProviderIcon = (issuerUrl) => {
-    if (issuerUrl.includes('google')) return '🔵';
-    if (issuerUrl.includes('microsoft') || issuerUrl.includes('azure')) return '🟢';
-    if (issuerUrl.includes('github')) return '⚫';
-    if (issuerUrl.includes('auth0')) return '🔴';
+    if (issuerUrl?.includes('google')) return '🔵';
+    if (issuerUrl?.includes('microsoft') || issuerUrl?.includes('azure')) return '🟢';
+    if (issuerUrl?.includes('github')) return '⚫';
+    if (issuerUrl?.includes('auth0')) return '🔴';
+    if (issuerUrl?.includes('okta')) return '🔷';
     return '🟣';
   };
 
   return (
-    <div className="p-6 lg:p-8 space-y-8 animate-fade-in" data-testid="oidc-page">
+    <div className="p-6 lg:p-8 space-y-8 animate-fade-in" data-testid="oidc-connections-page">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
-          <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
-            OIDC Connections
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
+              OIDC Providers
+            </h1>
+            <ProtocolBadge protocol="oidc" />
+          </div>
           <p className="text-sm text-muted-foreground">
-            Connect external identity providers using OpenID Connect
+            External OpenID Connect providers for social & modern SSO
           </p>
         </div>
         <Button 
           onClick={handleCreate}
-          data-testid="create-oidc-btn"
+          data-testid="create-oidc-connection-btn"
           className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
         >
           <Plus className="h-4 w-4 mr-2" />
@@ -188,10 +204,10 @@ export function OIDCConnections() {
         <EmptyState
           icon={GlobeLock}
           title="No OIDC providers connected"
-          description="Connect external identity providers like Google, Microsoft, or Auth0 to enable social login for your users."
-          actionLabel="Connect your first provider"
+          description="Connect external identity providers like Google, Microsoft, or Auth0 to enable social login."
+          actionLabel="Add OIDC Provider"
           onAction={handleCreate}
-          testId="empty-oidc"
+          testId="empty-oidc-connections"
         />
       ) : (
         <Card className="bg-card/40 backdrop-blur-sm border-border/40">
@@ -211,29 +227,32 @@ export function OIDCConnections() {
                   <TableRow 
                     key={connection.id} 
                     className="hover:bg-muted/30 border-b border-border/40"
-                    data-testid={`oidc-row-${connection.id}`}
+                    data-testid={`oidc-connection-row-${connection.id}`}
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center text-xl">
+                        <div className="h-10 w-10 rounded-lg bg-teal-500/10 flex items-center justify-center text-xl">
                           {getProviderIcon(connection.issuer_url)}
                         </div>
                         <div>
                           <p className="font-medium">{connection.name}</p>
-                          <p className="text-xs text-muted-foreground font-mono">
-                            {connection.client_id.slice(0, 16)}...
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <code className="text-xs font-mono text-muted-foreground">
+                              {connection.client_id?.slice(0, 16)}...
+                            </code>
+                            <CopyButton value={connection.client_id} testId={`copy-client-id-${connection.id}`} />
+                          </div>
                         </div>
                       </div>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <code className="text-sm font-mono text-muted-foreground">
-                        {connection.issuer_url.replace('https://', '')}
+                        {connection.issuer_url?.replace('https://', '')}
                       </code>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <div className="flex flex-wrap gap-1">
-                        {connection.scopes.slice(0, 3).map((scope) => (
+                        {connection.scopes?.slice(0, 3).map((scope) => (
                           <Badge 
                             key={scope}
                             variant="outline"
@@ -242,7 +261,7 @@ export function OIDCConnections() {
                             {scope}
                           </Badge>
                         ))}
-                        {connection.scopes.length > 3 && (
+                        {connection.scopes?.length > 3 && (
                           <Badge variant="outline" className="text-xs bg-muted/30">
                             +{connection.scopes.length - 3}
                           </Badge>
@@ -258,7 +277,7 @@ export function OIDCConnections() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleEdit(connection)}
-                          data-testid={`edit-oidc-${connection.id}`}
+                          data-testid={`edit-oidc-connection-${connection.id}`}
                           className="h-8 w-8"
                         >
                           <Pencil className="h-4 w-4" />
@@ -267,7 +286,7 @@ export function OIDCConnections() {
                           variant="ghost"
                           size="icon"
                           onClick={() => handleDeleteClick(connection)}
-                          data-testid={`delete-oidc-${connection.id}`}
+                          data-testid={`delete-oidc-connection-${connection.id}`}
                           className="h-8 w-8 hover:text-destructive"
                         >
                           <Trash2 className="h-4 w-4" />
@@ -286,8 +305,9 @@ export function OIDCConnections() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
-            <DialogTitle className="font-heading">
+            <DialogTitle className="font-heading flex items-center gap-2">
               {isEditing ? 'Edit OIDC Provider' : 'Add OIDC Provider'}
+              <ProtocolBadge protocol="oidc" />
             </DialogTitle>
             <DialogDescription>
               {isEditing 
@@ -298,7 +318,6 @@ export function OIDCConnections() {
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Provider Name */}
             <div className="space-y-2">
               <Label htmlFor="provider-name">Provider Name *</Label>
               <Input
@@ -306,11 +325,10 @@ export function OIDCConnections() {
                 value={formData.name}
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Google Workspace"
-                data-testid="oidc-name-input"
+                data-testid="oidc-connection-name-input"
               />
             </div>
 
-            {/* Issuer URL */}
             <div className="space-y-2">
               <Label htmlFor="issuer-url">Issuer URL *</Label>
               <Input
@@ -321,62 +339,104 @@ export function OIDCConnections() {
                 data-testid="oidc-issuer-input"
               />
               <p className="text-xs text-muted-foreground">
-                The OIDC issuer URL (e.g., https://accounts.google.com, https://login.microsoftonline.com/tenant-id/v2.0)
+                Used for OIDC Auto-Discovery (/.well-known/openid-configuration)
               </p>
             </div>
 
-            {/* Client ID */}
-            <div className="space-y-2">
-              <Label htmlFor="client-id">Client ID *</Label>
-              <Input
-                id="client-id"
-                value={formData.client_id}
-                onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                placeholder="your-client-id.apps.googleusercontent.com"
-                data-testid="oidc-client-id-input"
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="client-id">Client ID *</Label>
+                <Input
+                  id="client-id"
+                  value={formData.client_id}
+                  onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
+                  placeholder="your-client-id.apps.googleusercontent.com"
+                  data-testid="oidc-connection-client-id-input"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Client Secret *</Label>
+                <SecretInput
+                  value={formData.client_secret}
+                  onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
+                  placeholder="Enter client secret"
+                  testId="oidc-connection-client-secret-input"
+                />
+              </div>
             </div>
 
-            {/* Client Secret */}
-            <div className="space-y-2">
-              <Label>Client Secret *</Label>
-              <SecretInput
-                value={formData.client_secret}
-                onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
-                placeholder="Enter client secret from provider"
-                testId="oidc-client-secret-input"
-              />
-            </div>
-
-            {/* Scopes */}
             <div className="space-y-2">
               <Label>Scopes (comma-separated)</Label>
               <Input
-                value={formData.scopes.join(', ')}
+                value={formData.scopes?.join(', ') || ''}
                 onChange={(e) => setFormData({ 
                   ...formData, 
                   scopes: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
                 })}
                 placeholder="openid, email, profile"
-                data-testid="oidc-scopes-input"
+                data-testid="oidc-connection-scopes-input"
               />
-              <p className="text-xs text-muted-foreground">
-                Standard scopes: openid, email, profile. Check your provider's documentation for additional scopes.
-              </p>
             </div>
+
+            {/* Advanced Endpoint Overrides */}
+            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+              <CollapsibleTrigger asChild>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="w-full justify-between"
+                  data-testid="advanced-toggle"
+                >
+                  <span>Advanced: Endpoint Overrides</span>
+                  <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="space-y-4 pt-4">
+                <p className="text-xs text-muted-foreground">
+                  Override auto-discovered endpoints if needed
+                </p>
+                <div className="space-y-2">
+                  <Label>Authorization Endpoint</Label>
+                  <Input
+                    value={formData.authorization_endpoint || ''}
+                    onChange={(e) => setFormData({ ...formData, authorization_endpoint: e.target.value })}
+                    placeholder="https://accounts.google.com/o/oauth2/v2/auth"
+                    data-testid="oidc-auth-endpoint-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Token Endpoint</Label>
+                  <Input
+                    value={formData.token_endpoint || ''}
+                    onChange={(e) => setFormData({ ...formData, token_endpoint: e.target.value })}
+                    placeholder="https://oauth2.googleapis.com/token"
+                    data-testid="oidc-token-endpoint-input"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>UserInfo Endpoint</Label>
+                  <Input
+                    value={formData.userinfo_endpoint || ''}
+                    onChange={(e) => setFormData({ ...formData, userinfo_endpoint: e.target.value })}
+                    placeholder="https://openidconnect.googleapis.com/v1/userinfo"
+                    data-testid="oidc-userinfo-endpoint-input"
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
 
             <DialogFooter>
               <Button 
                 type="button" 
                 variant="outline" 
                 onClick={() => setDialogOpen(false)}
-                data-testid="cancel-oidc-btn"
+                data-testid="cancel-oidc-connection-btn"
               >
                 Cancel
               </Button>
               <Button 
                 type="submit"
-                data-testid="save-oidc-btn"
+                data-testid="save-oidc-connection-btn"
                 className="bg-primary hover:bg-primary/90"
               >
                 {isEditing ? 'Update Provider' : 'Add Provider'}
@@ -397,10 +457,10 @@ export function OIDCConnections() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="cancel-delete-oidc-btn">Cancel</AlertDialogCancel>
+            <AlertDialogCancel data-testid="cancel-delete-oidc-connection-btn">Cancel</AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
-              data-testid="confirm-delete-oidc-btn"
+              data-testid="confirm-delete-oidc-connection-btn"
               className="bg-destructive hover:bg-destructive/90"
             >
               Delete
