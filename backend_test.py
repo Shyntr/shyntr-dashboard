@@ -545,20 +545,32 @@ class ShyntrAPITester:
         print("\n=== ERROR SCENARIO TESTS ===")
         
         # Test 404 scenarios
-        success, _ = self.run_test("Get Non-existent Client", "GET", "clients/non-existent", 404)
+        success, _ = self.run_test("Get Non-existent OIDC Client", "GET", "clients/non-existent", 404)
         if not success:
             return False
             
-        success, _ = self.run_test("Get Non-existent SAML", "GET", "saml-connections/non-existent", 404)
+        success, _ = self.run_test("Get Non-existent SAML Client", "GET", "saml-clients/non-existent", 404)
         if not success:
             return False
             
-        success, _ = self.run_test("Get Non-existent OIDC", "GET", "oidc-connections/non-existent", 404)
+        success, _ = self.run_test("Get Non-existent SAML Connection", "GET", "saml-connections/non-existent", 404)
+        if not success:
+            return False
+            
+        success, _ = self.run_test("Get Non-existent OIDC Connection", "GET", "oidc-connections/non-existent", 404)
+        if not success:
+            return False
+
+        success, _ = self.run_test("Get Non-existent Tenant", "GET", "tenants/non-existent", 404)
         if not success:
             return False
 
         # Test delete non-existent resources
-        success, _ = self.run_test("Delete Non-existent Client", "DELETE", "clients/non-existent", 404)
+        success, _ = self.run_test("Delete Non-existent OIDC Client", "DELETE", "clients/non-existent", 404)
+        if not success:
+            return False
+
+        success, _ = self.run_test("Delete Non-existent SAML Client", "DELETE", "saml-clients/non-existent", 404)
         if not success:
             return False
 
@@ -568,21 +580,33 @@ class ShyntrAPITester:
         """Clean up any remaining test resources"""
         print("\n=== CLEANUP ===")
         
-        for client_id in self.created_resources['clients']:
+        for client_id in self.created_resources['oidc_clients']:
             try:
-                self.run_test(f"Cleanup Client {client_id}", "DELETE", f"clients/{client_id}", 200)
+                self.run_test(f"Cleanup OIDC Client {client_id}", "DELETE", f"clients/{client_id}", 200)
+            except:
+                pass
+
+        for client_id in self.created_resources['saml_clients']:
+            try:
+                self.run_test(f"Cleanup SAML Client {client_id}", "DELETE", f"saml-clients/{client_id}", 200)
             except:
                 pass
                 
         for saml_id in self.created_resources['saml_connections']:
             try:
-                self.run_test(f"Cleanup SAML {saml_id}", "DELETE", f"saml-connections/{saml_id}", 200)
+                self.run_test(f"Cleanup SAML Connection {saml_id}", "DELETE", f"saml-connections/{saml_id}", 200)
             except:
                 pass
                 
         for oidc_id in self.created_resources['oidc_connections']:
             try:
-                self.run_test(f"Cleanup OIDC {oidc_id}", "DELETE", f"oidc-connections/{oidc_id}", 200)
+                self.run_test(f"Cleanup OIDC Connection {oidc_id}", "DELETE", f"oidc-connections/{oidc_id}", 200)
+            except:
+                pass
+
+        for tenant_id in self.created_resources['tenants']:
+            try:
+                self.run_test(f"Cleanup Tenant {tenant_id}", "DELETE", f"tenants/{tenant_id}", 200)
             except:
                 pass
 
