@@ -33,21 +33,35 @@ api.interceptors.response.use(
 // Dashboard
 export const getDashboardStats = () => api.get('/dashboard/stats');
 
-// OAuth2 Clients
-export const getClients = () => api.get('/clients');
-export const getClient = (id) => api.get(`/clients/${id}`);
-export const createClient = (data) => api.post('/clients', data);
-export const updateClient = (id, data) => api.put(`/clients/${id}`, data);
-export const deleteClient = (id) => api.delete(`/clients/${id}`);
+// Tenants
+export const getTenants = () => api.get('/tenants');
+export const getTenant = (id) => api.get(`/tenants/${id}`);
+export const createTenant = (data) => api.post('/tenants', data);
+export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
+export const deleteTenant = (id) => api.delete(`/tenants/${id}`);
 
-// SAML Connections
+// OIDC Clients (Applications)
+export const getOIDCClients = () => api.get('/clients');
+export const getOIDCClient = (id) => api.get(`/clients/${id}`);
+export const createOIDCClient = (data) => api.post('/clients', data);
+export const updateOIDCClient = (id, data) => api.put(`/clients/${id}`, data);
+export const deleteOIDCClient = (id) => api.delete(`/clients/${id}`);
+
+// SAML Clients (Service Providers)
+export const getSAMLClients = () => api.get('/saml-clients');
+export const getSAMLClient = (id) => api.get(`/saml-clients/${id}`);
+export const createSAMLClient = (data) => api.post('/saml-clients', data);
+export const updateSAMLClient = (id, data) => api.put(`/saml-clients/${id}`, data);
+export const deleteSAMLClient = (id) => api.delete(`/saml-clients/${id}`);
+
+// SAML Connections (Identity Providers)
 export const getSAMLConnections = () => api.get('/saml-connections');
 export const getSAMLConnection = (id) => api.get(`/saml-connections/${id}`);
 export const createSAMLConnection = (data) => api.post('/saml-connections', data);
 export const updateSAMLConnection = (id, data) => api.put(`/saml-connections/${id}`, data);
 export const deleteSAMLConnection = (id) => api.delete(`/saml-connections/${id}`);
 
-// OIDC Connections
+// OIDC Connections (External Providers)
 export const getOIDCConnections = () => api.get('/oidc-connections');
 export const getOIDCConnection = (id) => api.get(`/oidc-connections/${id}`);
 export const createOIDCConnection = (data) => api.post('/oidc-connections', data);
