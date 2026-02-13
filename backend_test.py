@@ -423,6 +423,123 @@ class ShyntrAPITester:
         
         return success
 
+    # Tenants Tests
+    def test_tenants(self) -> bool:
+        """Test complete Tenants CRUD operations"""
+        print("\n=== TENANTS TESTS ===")
+        
+        # 1. List tenants (should include at least default)
+        success, tenants = self.run_test("List Tenants", "GET", "tenants", 200)
+        if not success:
+            return False
+        
+        # Should have at least the default tenant
+        default_tenant_exists = any(t.get('name') == 'default' for t in tenants)
+        if not default_tenant_exists:
+            print("❌ Default tenant should always exist")
+            return False
+
+        # 2. Create a new tenant
+        tenant_data = {
+            "name": f"test-tenant-{datetime.now().strftime('%H%M%S')}",
+            "display_name": "Test Tenant Organization",
+            "description": "A test tenant for automated testing"
+        }
+        
+        success, created_tenant = self.run_test(
+            "Create Tenant", 
+            "POST", 
+            "tenants", 
+            201, 
+            tenant_data
+        )
+        if not success:
+            return False
+        
+        self.created_resources['tenants'].append(created_tenant['id'])
+        print(f"   Created tenant ID: {created_tenant['id']}")
+
+        # 3. Get specific tenant
+        success, retrieved_tenant = self.run_test(
+            "Get Tenant", 
+            "GET", 
+            f"tenants/{created_tenant['id']}", 
+            200
+        )
+        if not success or retrieved_tenant['name'] != tenant_data['name']:
+            return False
+
+        # 4. Update tenant (not default)
+        updated_tenant_data = tenant_data.copy()
+        updated_tenant_data['display_name'] = "Updated Test Tenant"
+        updated_tenant_data['description'] = "An updated test tenant"
+        
+        success, updated_tenant = self.run_test(
+            "Update Tenant", 
+            "PUT", 
+            f"tenants/{created_tenant['id']}", 
+            200, 
+            updated_tenant_data
+        )
+        if not success or updated_tenant['display_name'] != "Updated Test Tenant":
+            return False
+
+        # 5. Test duplicate tenant name (should fail)
+        success, _ = self.run_test(
+            "Create Duplicate Tenant", 
+            "POST", 
+            "tenants", 
+            400, 
+            tenant_data
+        )
+        if not success:
+            print("⚠️  Duplicate tenant creation should fail with 400")
+
+        # 6. Test creating tenant with 'default' name (should fail)
+        default_tenant_data = {"name": "default", "display_name": "Another Default"}
+        success, _ = self.run_test(
+            "Create Tenant Named 'default'", 
+            "POST", 
+            "tenants", 
+            400, 
+            default_tenant_data
+        )
+        if not success:
+            print("⚠️  Creating tenant named 'default' should fail with 400")
+
+        # 7. Test updating default tenant (should fail)
+        success, _ = self.run_test(
+            "Update Default Tenant", 
+            "PUT", 
+            "tenants/default", 
+            400, 
+            {"name": "default", "display_name": "Modified Default"}
+        )
+        if not success:
+            print("⚠️  Updating default tenant should fail with 400")
+
+        # 8. Test deleting default tenant (should fail)
+        success, _ = self.run_test(
+            "Delete Default Tenant", 
+            "DELETE", 
+            "tenants/default", 
+            400
+        )
+        if not success:
+            print("⚠️  Deleting default tenant should fail with 400")
+
+        # 9. Delete created tenant
+        success, _ = self.run_test(
+            "Delete Tenant", 
+            "DELETE", 
+            f"tenants/{created_tenant['id']}", 
+            200
+        )
+        if success:
+            self.created_resources['tenants'].remove(created_tenant['id'])
+        
+        return success
+
     def test_error_scenarios(self) -> bool:
         """Test various error scenarios"""
         print("\n=== ERROR SCENARIO TESTS ===")
