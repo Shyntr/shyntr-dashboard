@@ -3,29 +3,120 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   AppWindow, 
-  KeyRound, 
-  GlobeLock, 
-  Settings,
+  Link2,
+  Building2,
   Menu,
-  X,
   Sun,
-  Moon
+  Moon,
+  ChevronDown,
+  GlobeLock,
+  KeyRound
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { useTheme } from '../../context/ThemeContext';
+import { cn } from '../../lib/utils';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'Applications', href: '/applications', icon: AppWindow },
-  { name: 'SSO Integrations', href: '/sso', icon: KeyRound },
-  { name: 'OIDC Connections', href: '/oidc', icon: GlobeLock },
-  { name: 'Settings', href: '/settings', icon: Settings },
+  { 
+    name: 'Applications', 
+    icon: AppWindow,
+    children: [
+      { name: 'OIDC Clients', href: '/applications/oidc', protocol: 'oidc' },
+      { name: 'SAML Clients', href: '/applications/saml', protocol: 'saml' },
+    ]
+  },
+  { 
+    name: 'Connections', 
+    icon: Link2,
+    children: [
+      { name: 'OIDC Providers', href: '/connections/oidc', protocol: 'oidc' },
+      { name: 'SAML Providers', href: '/connections/saml', protocol: 'saml' },
+    ]
+  },
+  { name: 'Tenants', href: '/tenants', icon: Building2 },
 ];
 
-function Sidebar({ mobile = false, onClose }) {
+function NavItem({ item, mobile, onClose }) {
   const location = useLocation();
+  const [open, setOpen] = useState(
+    item.children?.some(child => location.pathname.startsWith(child.href))
+  );
   
+  const isActive = item.href === location.pathname;
+  const hasChildren = item.children && item.children.length > 0;
+  
+  if (hasChildren) {
+    return (
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger asChild>
+          <button
+            className={cn(
+              'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200',
+              'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+            )}
+            data-testid={`nav-${item.name.toLowerCase()}-toggle`}
+          >
+            <span className="flex items-center gap-3">
+              <item.icon className="h-5 w-5" strokeWidth={1.5} />
+              {item.name}
+            </span>
+            <ChevronDown className={cn(
+              'h-4 w-4 transition-transform duration-200',
+              open && 'rotate-180'
+            )} />
+          </button>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="pl-8 space-y-1 mt-1">
+          {item.children.map((child) => {
+            const childActive = location.pathname === child.href;
+            return (
+              <Link
+                key={child.href}
+                to={child.href}
+                onClick={mobile ? onClose : undefined}
+                data-testid={`nav-${child.name.toLowerCase().replace(/\s/g, '-')}`}
+                className={cn(
+                  'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-200',
+                  childActive
+                    ? 'bg-primary/10 text-primary border border-primary/20'
+                    : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+                )}
+              >
+                <span className={cn(
+                  'w-2 h-2 rounded-full',
+                  child.protocol === 'oidc' ? 'bg-teal-500' : 'bg-orange-500'
+                )} />
+                {child.name}
+              </Link>
+            );
+          })}
+        </CollapsibleContent>
+      </Collapsible>
+    );
+  }
+  
+  return (
+    <Link
+      to={item.href}
+      data-testid={`nav-${item.name.toLowerCase()}`}
+      onClick={mobile ? onClose : undefined}
+      className={cn(
+        'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200',
+        isActive
+          ? 'bg-primary/10 text-primary border border-primary/20'
+          : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
+      )}
+    >
+      <item.icon className="h-5 w-5" strokeWidth={1.5} />
+      {item.name}
+    </Link>
+  );
+}
+
+function Sidebar({ mobile = false, onClose }) {
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -35,37 +126,24 @@ function Sidebar({ mobile = false, onClose }) {
           alt="Shyntr Mascot" 
           className="h-10 w-10 object-contain"
         />
-        <span className="font-heading text-xl font-bold text-foreground">Shyntr</span>
+        <div className="flex flex-col">
+          <span className="font-heading text-lg font-bold text-foreground leading-tight">Shyntr</span>
+          <span className="text-[10px] text-muted-foreground uppercase tracking-wider">Auth Hub</span>
+        </div>
       </div>
       
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
-        {navigation.map((item) => {
-          const isActive = location.pathname === item.href;
-          return (
-            <Link
-              key={item.name}
-              to={item.href}
-              data-testid={`nav-${item.name.toLowerCase().replace(' ', '-')}`}
-              onClick={mobile ? onClose : undefined}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200 ${
-                isActive 
-                  ? 'bg-primary/10 text-primary border border-primary/20' 
-                  : 'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
-              }`}
-            >
-              <item.icon className="h-5 w-5" strokeWidth={1.5} />
-              {item.name}
-            </Link>
-          );
-        })}
+      <nav className="flex-1 space-y-1 px-3 py-4 overflow-y-auto">
+        {navigation.map((item) => (
+          <NavItem key={item.name} item={item} mobile={mobile} onClose={onClose} />
+        ))}
       </nav>
       
       {/* Footer */}
       <div className="border-t border-border/40 p-4">
         <div className="text-xs text-muted-foreground">
-          <p>Shyntr IAM v1.0</p>
-          <p className="mt-1">Identity Management</p>
+          <p className="font-medium">Shyntr v1.0</p>
+          <p className="mt-1 opacity-70">Protocol-Agnostic Auth</p>
         </div>
       </div>
     </div>
