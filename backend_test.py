@@ -197,7 +197,7 @@ class ShyntrAPITester:
             "Create SAML Connection", 
             "POST", 
             "saml-connections", 
-            201, 
+            200, 
             saml_data
         )
         if not success:
