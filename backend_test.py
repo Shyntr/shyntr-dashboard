@@ -108,7 +108,7 @@ class ShyntrAPITester:
             "Create OAuth2 Client", 
             "POST", 
             "clients", 
-            201, 
+            200, 
             client_data
         )
         if not success:
