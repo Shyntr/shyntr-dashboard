@@ -175,6 +175,98 @@ class ShyntrAPITester:
         
         return success
 
+    # SAML Client Tests (Applications)  
+    def test_saml_clients(self) -> bool:
+        """Test complete SAML client CRUD operations"""
+        print("\n=== SAML CLIENT TESTS ===")
+        
+        # 1. List SAML clients
+        success, clients = self.run_test("List SAML Clients", "GET", "saml-clients", 200)
+        if not success:
+            return False
+
+        # 2. Create SAML client
+        saml_client_data = {
+            "entity_id": f"https://test-sp-{datetime.now().strftime('%H%M%S')}.example.com",
+            "name": "Test SAML Service Provider",
+            "tenant_id": "default",
+            "acs_url": "https://test-sp.example.com/acs",
+            "sp_certificate": "",
+            "sign_response": True,
+            "sign_assertion": True,
+            "encrypt_assertion": False,
+            "force_authn": False,
+            "attribute_mapping": {
+                "email": "user_email",
+                "name": "displayName"
+            }
+        }
+        
+        success, created_saml_client = self.run_test(
+            "Create SAML Client", 
+            "POST", 
+            "saml-clients", 
+            201, 
+            saml_client_data
+        )
+        if not success:
+            return False
+        
+        self.created_resources['saml_clients'].append(created_saml_client['id'])
+        print(f"   Created SAML client ID: {created_saml_client['id']}")
+
+        # 3. Get specific SAML client
+        success, retrieved_saml_client = self.run_test(
+            "Get SAML Client", 
+            "GET", 
+            f"saml-clients/{created_saml_client['id']}", 
+            200
+        )
+        if not success or retrieved_saml_client['entity_id'] != saml_client_data['entity_id']:
+            return False
+
+        # 4. Update SAML client
+        updated_saml_data = saml_client_data.copy()
+        updated_saml_data['encrypt_assertion'] = True
+        updated_saml_data['attribute_mapping'] = {
+            "email": "user_email",
+            "name": "displayName",
+            "department": "dept"
+        }
+        
+        success, updated_saml_client = self.run_test(
+            "Update SAML Client", 
+            "PUT", 
+            f"saml-clients/{created_saml_client['id']}", 
+            200, 
+            updated_saml_data
+        )
+        if not success or updated_saml_client['encrypt_assertion'] != True:
+            return False
+
+        # 5. Test duplicate entity_id (should fail)
+        success, _ = self.run_test(
+            "Create Duplicate SAML Client", 
+            "POST", 
+            "saml-clients", 
+            400, 
+            saml_client_data
+        )
+        if not success:
+            print("⚠️  Duplicate SAML client creation should fail with 400")
+
+        # 6. Delete SAML client
+        success, _ = self.run_test(
+            "Delete SAML Client", 
+            "DELETE", 
+            f"saml-clients/{created_saml_client['id']}", 
+            200
+        )
+        if success:
+            self.created_resources['saml_clients'].remove(created_saml_client['id'])
+        
+        return success
+
     def test_saml_connections(self) -> bool:
         """Test complete SAML connection CRUD operations"""
         print("\n=== SAML CONNECTION TESTS ===")
