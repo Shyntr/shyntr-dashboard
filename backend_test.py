@@ -612,9 +612,9 @@ class ShyntrAPITester:
 
     def run_all_tests(self) -> bool:
         """Run all backend API tests"""
-        print("🚀 Starting Shyntr IAM Backend API Tests")
+        print("🚀 Starting Shyntr IAM Backend API Tests - Iteration 2")
         print(f"Base URL: {self.base_url}")
-        print("=" * 50)
+        print("=" * 60)
         
         all_tests_passed = True
         
@@ -623,16 +623,24 @@ class ShyntrAPITester:
             if not self.test_dashboard_stats():
                 all_tests_passed = False
             
-            # Test OAuth2 clients
-            if not self.test_oauth2_clients():
+            # Test OIDC clients (Applications)
+            if not self.test_oidc_clients():
+                all_tests_passed = False
+
+            # Test SAML clients (Applications)
+            if not self.test_saml_clients():
                 all_tests_passed = False
             
-            # Test SAML connections
+            # Test SAML connections (Providers)
             if not self.test_saml_connections():
                 all_tests_passed = False
             
-            # Test OIDC connections
+            # Test OIDC connections (Providers)
             if not self.test_oidc_connections():
+                all_tests_passed = False
+
+            # Test Tenants
+            if not self.test_tenants():
                 all_tests_passed = False
                 
             # Test error scenarios
@@ -644,7 +652,7 @@ class ShyntrAPITester:
             self.cleanup_resources()
         
         # Print results
-        print("\n" + "=" * 50)
+        print("\n" + "=" * 60)
         print(f"📊 Test Results: {self.tests_passed}/{self.tests_run} passed")
         
         if all_tests_passed and self.tests_passed == self.tests_run:
