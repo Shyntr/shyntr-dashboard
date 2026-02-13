@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
-Backend API Testing for Shyntr IAM System
-Tests all CRUD operations for OAuth2 clients, SAML connections, and OIDC connections.
+Backend API Testing for Shyntr IAM System - Iteration 2
+Tests all CRUD operations for OIDC clients, SAML clients, SAML connections, OIDC connections, and Tenants.
 """
 import requests
 import sys
@@ -15,9 +15,11 @@ class ShyntrAPITester:
         self.tests_run = 0
         self.tests_passed = 0
         self.created_resources = {
-            'clients': [],
+            'oidc_clients': [],
+            'saml_clients': [],
             'saml_connections': [],
-            'oidc_connections': []
+            'oidc_connections': [],
+            'tenants': []
         }
 
     def run_test(self, name: str, method: str, endpoint: str, expected_status: int, data: Dict = None) -> tuple[bool, Any]:
