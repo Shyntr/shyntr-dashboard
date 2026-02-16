@@ -82,7 +82,7 @@ const defaultClient = {
   audience: [],
   public: false,
   enforce_pkce: true,
-  auth_method: 'client_secret_basic'
+  token_endpoint_auth_method: 'client_secret_basic'
 };
 
 export function OIDCClients() {
@@ -240,6 +240,7 @@ export function OIDCClients() {
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-xs uppercase tracking-wider">Client ID</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider">Type</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">Secret</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Auth Method</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
@@ -277,6 +278,17 @@ export function OIDCClients() {
                         {client.public ? 'Public' : 'Confidential'}
                       </Badge>
                     </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={client.tenant_id
+                          ? 'bg-amber-500/15 text-amber-500 border-amber-500/20'
+                          : 'bg-violet-500/15 text-violet-500 border-violet-500/20'
+                        }
+                      >
+                        {client.tenant_id}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <div className="flex items-center gap-2">
                         <code className="text-sm font-mono text-muted-foreground">
@@ -287,7 +299,7 @@ export function OIDCClients() {
                     </TableCell>
                     <TableCell className="hidden lg:table-cell">
                       <span className="text-sm text-muted-foreground">
-                        {client.auth_method?.replace(/_/g, ' ')}
+                        {client.token_endpoint_auth_method?.replace(/_/g, ' ')}
                       </span>
                     </TableCell>
                     <TableCell className="hidden lg:table-cell text-sm text-muted-foreground">
@@ -483,8 +495,8 @@ export function OIDCClients() {
                 <div className="space-y-2">
                   <Label>Authentication Method</Label>
                   <Select
-                    value={formData.auth_method}
-                    onValueChange={(value) => setFormData({ ...formData, auth_method: value })}
+                    value={formData.token_endpoint_auth_method}
+                    onValueChange={(value) => setFormData({ ...formData, token_endpoint_auth_method: value })}
                   >
                     <SelectTrigger data-testid="oidc-auth-method-select">
                       <SelectValue />

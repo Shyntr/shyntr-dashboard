@@ -37,7 +37,8 @@ import {
 const defaultTenant = {
   name: '',
   display_name: '',
-  description: ''
+  description: '',
+  issuer_url: ''
 };
 
 export function Tenants() {
