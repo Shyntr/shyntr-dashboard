@@ -45,8 +45,10 @@ import {
   getOIDCConnections, 
   createOIDCConnection, 
   updateOIDCConnection, 
-  deleteOIDCConnection 
+  deleteOIDCConnection,
+  getTenants
 } from '../../lib/api';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 
 const defaultConnection = {
   name: '',
@@ -62,6 +64,7 @@ const defaultConnection = {
 
 export function OIDCConnections() {
   const [connections, setConnections] = useState([]);
+  const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -72,6 +75,7 @@ export function OIDCConnections() {
 
   useEffect(() => {
     fetchConnections();
+    fetchTenants();
   }, []);
 
   const fetchConnections = async () => {
@@ -83,6 +87,20 @@ export function OIDCConnections() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const response = await getTenants();
+      setTenants(response.data);
+    } catch (error) {
+      console.error('Failed to load tenants:', error);
+    }
+  };
+
+  const getTenantName = (tenantId) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    return tenant ? (tenant.display_name || tenant.name) : tenantId;
   };
 
   const handleCreate = () => {
@@ -216,6 +234,7 @@ export function OIDCConnections() {
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-xs uppercase tracking-wider">Provider</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">Issuer URL</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Scopes</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
@@ -244,6 +263,14 @@ export function OIDCConnections() {
                           </div>
                         </div>
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                          variant="outline"
+                          className='bg-amber-500/15 text-amber-500 border-amber-500/20'
+                      >
+                        {getTenantName(connection.tenant_id)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <code className="text-sm font-mono text-muted-foreground">
@@ -327,6 +354,25 @@ export function OIDCConnections() {
                 placeholder="Google Workspace"
                 data-testid="oidc-connection-name-input"
               />
+            </div>
+            <div className="space-y-2">
+              <Label>Tenant *</Label>
+              <Select
+                  value={formData.tenant_id}
+                  onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
+                  // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a tenant" />
+                </SelectTrigger>
+                <SelectContent>
+                  {tenants.map((tenant) => (
+                      <SelectItem key={tenant.id} value={tenant.id}>
+                        {tenant.display_name || tenant.name}
+                      </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">

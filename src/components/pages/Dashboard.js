@@ -30,6 +30,7 @@ import {
   BarChart,
   Bar
 } from 'recharts';
+import {ActivityTypeBadge} from "@/components/shared/ActivityTypeBadge";
 
 const COLORS = {
   oidc: '#14b8a6',  // teal-500
@@ -293,11 +294,12 @@ export function Dashboard() {
                     className="flex items-center justify-between py-2 border-b border-border/40 last:border-0"
                   >
                     <div className="flex items-center gap-3">
-                      <ProtocolBadge protocol={activity.protocol} />
+                      <ProtocolBadge protocol={!!activity.saml_request_id ? "saml" : "oidc"}/>
+                      <ActivityTypeBadge type={"login_request"}/>
                       <div>
-                        <p className="text-sm font-medium">{activity.name}</p>
+                        <p className="text-sm font-medium">{activity.subject}</p>
                         <p className="text-xs text-muted-foreground capitalize">
-                          {activity.type?.replace('_', ' ')} {activity.action}
+                          {activity.type?.replace('_', ' ')} {activity.status}
                         </p>
                       </div>
                     </div>

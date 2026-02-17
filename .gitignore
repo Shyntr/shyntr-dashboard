@@ -25,3 +25,4 @@ yarn-error.log*
 *.sh
 .idea
 yarn.lock
+*.txt
