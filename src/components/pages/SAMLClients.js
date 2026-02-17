@@ -43,8 +43,10 @@ import {
   getSAMLClients, 
   createSAMLClient, 
   updateSAMLClient, 
-  deleteSAMLClient 
+  deleteSAMLClient,
+  getTenants
 } from '../../lib/api';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 
 const defaultClient = {
   entity_id: '',
@@ -59,8 +61,9 @@ const defaultClient = {
   attribute_mapping: {}
 };
 
-export function SAMLClients() {
+function SAMLClients() {
   const [clients, setClients] = useState([]);
+  const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -71,6 +74,7 @@ export function SAMLClients() {
 
   useEffect(() => {
     fetchClients();
+    fetchTenants();
   }, []);
 
   const fetchClients = async () => {
@@ -82,6 +86,20 @@ export function SAMLClients() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const response = await getTenants();
+      setTenants(response.data);
+    } catch (error) {
+      console.error('Failed to load tenants:', error);
+    }
+  };
+
+  const getTenantName = (tenantId) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    return tenant ? (tenant.display_name || tenant.name) : tenantId;
   };
 
   const handleCreate = () => {
@@ -211,6 +229,7 @@ export function SAMLClients() {
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                   <TableHead className="text-xs uppercase tracking-wider">Entity ID</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">ACS URL</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Settings</TableHead>
                   <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
@@ -236,6 +255,14 @@ export function SAMLClients() {
                           <span className="text-xs text-muted-foreground">{client.name}</span>
                         )}
                       </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                          variant="outline"
+                          className='bg-amber-500/15 text-amber-500 border-amber-500/20'
+                      >
+                        {getTenantName(client.tenant_id)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <code className="text-sm font-mono text-muted-foreground max-w-[200px] truncate block">
@@ -314,6 +341,25 @@ export function SAMLClients() {
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4 mt-4">
+                <div className="space-y-2">
+                  <Label>Tenant *</Label>
+                  <Select
+                      value={formData.tenant_id}
+                      onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
+                      // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a tenant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tenants.map((tenant) => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {tenant.display_name || tenant.name}
+                          </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-2">
                     <Label htmlFor="entity-id">Entity ID *</Label>
@@ -485,3 +531,5 @@ MIIDXTCCAkWgAwIBAgIJAJC1HiIAZAiU...
     </div>
   );
 }
+
+export default SAMLClients

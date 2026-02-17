@@ -4,7 +4,7 @@ import { ThemeProvider } from "./context/ThemeContext";
 import { Layout } from "./components/layout/Layout";
 import { Dashboard } from "./components/pages/Dashboard";
 import { OIDCClients } from "./components/pages/OIDCClients";
-import { SAMLClients } from "./components/pages/SAMLClients";
+import SAMLClients from "./components/pages/SAMLClients";
 import { SAMLConnections } from "./components/pages/SAMLConnections";
 import { OIDCConnections } from "./components/pages/OIDCConnections";
 import { Tenants } from "./components/pages/Tenants";

@@ -42,8 +42,10 @@ import {
   getSAMLConnections, 
   createSAMLConnection, 
   updateSAMLConnection, 
-  deleteSAMLConnection 
+  deleteSAMLConnection,
+  getTenants
 } from '../../lib/api';
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
 
 const defaultConnection = {
   name: '',
@@ -56,6 +58,7 @@ const defaultConnection = {
 
 export function SAMLConnections() {
   const [connections, setConnections] = useState([]);
+  const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -66,6 +69,7 @@ export function SAMLConnections() {
 
   useEffect(() => {
     fetchConnections();
+    fetchTenants();
   }, []);
 
   const fetchConnections = async () => {
@@ -77,6 +81,20 @@ export function SAMLConnections() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const fetchTenants = async () => {
+    try {
+      const response = await getTenants();
+      setTenants(response.data);
+    } catch (error) {
+      console.error('Failed to load tenants:', error);
+    }
+  };
+
+  const getTenantName = (tenantId) => {
+    const tenant = tenants.find(t => t.id === tenantId);
+    return tenant ? (tenant.display_name || tenant.name) : tenantId;
   };
 
   const handleCreate = () => {
@@ -243,9 +261,12 @@ export function SAMLConnections() {
                       </div>
                     </TableCell>
                     <TableCell>
-                      <code className="text-sm font-mono bg-muted/50 px-2 py-1 rounded">
-                        {connection.tenant_id}
-                      </code>
+                      <Badge
+                          variant="outline"
+                          className='bg-amber-500/15 text-amber-500 border-amber-500/20'
+                      >
+                        {getTenantName(connection.tenant_id)}
+                      </Badge>
                     </TableCell>
                     <TableCell className="hidden md:table-cell">
                       <div className="flex gap-2">
@@ -332,6 +353,25 @@ export function SAMLConnections() {
                     placeholder="Okta Employee Login"
                     data-testid="saml-connection-name-input"
                   />
+                </div>
+                <div className="space-y-2">
+                  <Label>Tenant *</Label>
+                  <Select
+                      value={formData.tenant_id}
+                      onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
+                      // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a tenant" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {tenants.map((tenant) => (
+                          <SelectItem key={tenant.id} value={tenant.id}>
+                            {tenant.display_name || tenant.name}
+                          </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-2">
