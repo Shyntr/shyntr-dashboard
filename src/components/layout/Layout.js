@@ -9,8 +9,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
-  GlobeLock,
-  KeyRound
+  Settings as SettingsIcon
 } from 'lucide-react';
 import { Button } from '../ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
@@ -37,6 +36,7 @@ const navigation = [
     ]
   },
   { name: 'Tenants', href: '/tenants', icon: Building2 },
+  { name: 'Settings', href: '/settings', icon: SettingsIcon },
 ];
 
 function NavItem({ item, mobile, onClose }) {

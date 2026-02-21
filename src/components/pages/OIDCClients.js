@@ -223,11 +223,6 @@ export function OIDCClients() {
         }));
     };
 
-    useEffect(() => {
-        console.log(formData.tenant_id);
-        console.log(clients)
-    }, [formData]);
-
     return (
         <div className="p-6 lg:p-8 space-y-8 animate-fade-in" data-testid="oidc-clients-page">
             {/* Header */}

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+export const BACKEND_URL = window._env_?.SHYNTR_MANAGEMENT_BACKEND_URL || process.env.REACT_APP_BACKEND_URL || "http://localhost:7497";
 
 const api = axios.create({
   baseURL: `${BACKEND_URL}/admin/management`,

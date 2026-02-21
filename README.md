@@ -57,7 +57,7 @@ The application is optimized for production using a multi-stage Docker build ser
 docker build -t shyntr/shyntr-dashboard:latest .
 
 # Run the container
-docker run -d -p 3000:80 --name shyntr-dashboard shyntr/shyntr-dashboard:latest
+docker run -d -p 3000:80 -e REACT_APP_BACKEND_URL="https://shyntr-api.domain.com" \ --name shyntr-dashboard shyntr/shyntr-dashboard:latest
 ```
 
 ## 🔄 CI/CD Pipeline
