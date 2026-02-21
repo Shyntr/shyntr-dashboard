@@ -1,20 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, FileCode2, RefreshCw } from 'lucide-react';
-import { Card, CardContent } from '../ui/card';
-import { Button } from '../ui/button';
-import { Badge } from '../ui/badge';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Switch } from '../ui/switch';
-import { Textarea } from '../ui/textarea';
-import { 
-  Dialog, 
-  DialogContent, 
-  DialogDescription, 
-  DialogFooter, 
-  DialogHeader, 
-  DialogTitle 
-} from '../ui/dialog';
+import {useEffect, useState} from 'react';
+import {FileCode2, Pencil, Plus, RefreshCw, Trash2} from 'lucide-react';
+import {Card, CardContent} from '../ui/card';
+import {Button} from '../ui/button';
+import {Badge} from '../ui/badge';
+import {Input} from '../ui/input';
+import {Label} from '../ui/label';
+import {Switch} from '../ui/switch';
+import {Textarea} from '../ui/textarea';
+import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '../ui/dialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,28 +18,15 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '../ui/alert-dialog';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '../ui/table';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
-import { toast } from 'sonner';
-import { EmptyState } from '../shared/EmptyState';
-import { CopyButton } from '../shared/CopyButton';
-import { ProtocolBadge } from '../shared/ProtocolBadge';
-import { JsonEditor } from '../shared/JsonEditor';
-import { 
-  getSAMLClients, 
-  createSAMLClient, 
-  updateSAMLClient, 
-  deleteSAMLClient,
-  getTenants
-} from '../../lib/api';
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '../ui/table';
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '../ui/tabs';
+import {toast} from 'sonner';
+import {EmptyState} from '../shared/EmptyState';
+import {CopyButton} from '../shared/CopyButton';
+import {ProtocolBadge} from '../shared/ProtocolBadge';
+import {createSAMLClient, deleteSAMLClient, getSAMLClients, getTenants, updateSAMLClient} from '../../lib/api';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {AttributeMappingEditor} from "@/components/shared/AttributeMappingEditor";
 
 const defaultClient = {
   entity_id: '',
@@ -69,7 +49,7 @@ function SAMLClients() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState(null);
   const [formData, setFormData] = useState(defaultClient);
-  const [attributeMappingJson, setAttributeMappingJson] = useState('{}');
+  const [attributeMappingJson, setAttributeMappingJson] = useState({});
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -104,14 +84,12 @@ function SAMLClients() {
 
   const handleCreate = () => {
     setFormData(defaultClient);
-    setAttributeMappingJson('{\n  "email": "user_email",\n  "name": "displayName"\n}');
     setIsEditing(false);
     setDialogOpen(true);
   };
 
   const handleEdit = (client) => {
     setFormData(client);
-    setAttributeMappingJson(JSON.stringify(client.attribute_mapping || {}, null, 2));
     setIsEditing(true);
     setDialogOpen(true);
   };
@@ -148,7 +126,7 @@ function SAMLClients() {
 
     let attributeMapping = {};
     try {
-      attributeMapping = JSON.parse(attributeMappingJson);
+      attributeMapping = Object.assign(attributeMappingJson, {});
     } catch (err) {
       toast.error('Invalid JSON in attribute mapping');
       return;
@@ -471,16 +449,7 @@ MIIDXTCCAkWgAwIBAgIJAJC1HiIAZAiU...
 
               <TabsContent value="mapping" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Attribute Mapping (JSON)</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Map SAML assertion attributes to standard claims
-                  </p>
-                  <JsonEditor
-                    value={attributeMappingJson}
-                    onChange={setAttributeMappingJson}
-                    height="200px"
-                    testId="saml-attribute-mapping-editor"
-                  />
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={"Map SAML assertion attributes to standard claims"}/>
                 </div>
               </TabsContent>
             </Tabs>

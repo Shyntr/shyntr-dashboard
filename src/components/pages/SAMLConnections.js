@@ -46,6 +46,8 @@ import {
   getTenants
 } from '../../lib/api';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {AttributeMappingEditor} from "@/components/shared/AttributeMappingEditor";
+import {getProviderIcon} from "@/lib/utils";
 
 const defaultConnection = {
   name: '',
@@ -64,7 +66,7 @@ export function SAMLConnections() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedConnection, setSelectedConnection] = useState(null);
   const [formData, setFormData] = useState(defaultConnection);
-  const [attributeMappingJson, setAttributeMappingJson] = useState('{}');
+  const [attributeMappingJson, setAttributeMappingJson] = useState({});
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
@@ -99,14 +101,12 @@ export function SAMLConnections() {
 
   const handleCreate = () => {
     setFormData(defaultConnection);
-    setAttributeMappingJson('{\n  "email": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/emailaddress",\n  "name": "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/name"\n}');
     setIsEditing(false);
     setDialogOpen(true);
   };
 
   const handleEdit = (connection) => {
     setFormData(connection);
-    setAttributeMappingJson(JSON.stringify(connection.attribute_mapping || {}, null, 2));
     setIsEditing(true);
     setDialogOpen(true);
   };
@@ -153,7 +153,7 @@ export function SAMLConnections() {
 
     let attributeMapping = {};
     try {
-      attributeMapping = JSON.parse(attributeMappingJson);
+      attributeMapping = Object.assign(attributeMappingJson, {});
     } catch (err) {
       toast.error('Invalid JSON in attribute mapping');
       return;
@@ -249,8 +249,8 @@ export function SAMLConnections() {
                   >
                     <TableCell>
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 rounded-lg bg-orange-500/10 flex items-center justify-center">
-                          <KeyRound className="h-5 w-5 text-orange-500" />
+                        <div className="h-10 w-10 rounded-lg bg-teal-500/10 flex items-center justify-center text-xl">
+                          {getProviderIcon(connection.name)}
                         </div>
                         <div>
                           <p className="font-medium">{connection.name}</p>
@@ -319,7 +319,6 @@ export function SAMLConnections() {
         </Card>
       )}
 
-      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
@@ -438,16 +437,7 @@ export function SAMLConnections() {
 
               <TabsContent value="mapping" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label>Attribute Mapping (JSON)</Label>
-                  <p className="text-xs text-muted-foreground mb-2">
-                    Map IdP SAML attributes to OIDC standard claims
-                  </p>
-                  <JsonEditor
-                    value={attributeMappingJson}
-                    onChange={setAttributeMappingJson}
-                    height="200px"
-                    testId="saml-connection-attribute-mapping-editor"
-                  />
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={"Map IdP SAML attributes to OIDC standard claims"} />
                 </div>
               </TabsContent>
             </Tabs>

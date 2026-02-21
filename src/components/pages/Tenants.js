@@ -226,13 +226,13 @@ export function Tenants() {
                       Edit
                     </Button>
                     <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteClick(tenant)}
-                      data-testid={`delete-tenant-${tenant.name}`}
-                      className="flex-1 hover:text-destructive hover:border-destructive"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleDeleteClick(tenant)}
+                        data-testid={`delete-tenant-${tenant.name}`}
+                        className="flex-1 hover:text-destructive hover:border-destructive"
                     >
-                      <Trash2 className="h-3 w-3 mr-1" />
+                      <Trash2 className="h-3 w-3 mr-1"/>
                       Delete
                     </Button>
                   </div>
@@ -342,9 +342,19 @@ export function Tenants() {
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to delete <strong>{selectedTenant?.display_name || selectedTenant?.name}</strong>? 
-              All associated clients and connections in this tenant will also be affected.
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                Are you sure you want to delete the tenant <strong>{selectedTenant?.display_name || selectedTenant?.name}</strong>?
+              </p>
+              <div className="bg-destructive/10 text-destructive border border-destructive/20 p-3 rounded-md">
+                <strong>Warning:</strong> Deleting this tenant will permanently remove all associated:
+                <ul className="list-disc pl-5 mt-1">
+                  <li>OIDC & SAML Clients (Applications)</li>
+                  <li>OIDC & SAML Connections (Providers)</li>
+                  <li>All related session and login data</li>
+                </ul>
+              </div>
+              <p className="font-semibold text-foreground">This action cannot be undone.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

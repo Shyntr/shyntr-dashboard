@@ -49,6 +49,8 @@ import {
   getTenants
 } from '../../lib/api';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
+import {AttributeMappingEditor} from "@/components/shared/AttributeMappingEditor";
+import {getProviderIcon} from "@/lib/utils";
 
 const defaultConnection = {
   name: '',
@@ -59,11 +61,13 @@ const defaultConnection = {
   scopes: ['openid', 'email', 'profile'],
   authorization_endpoint: '',
   token_endpoint: '',
-  userinfo_endpoint: ''
+  userinfo_endpoint: '',
+  attribute_mapping: {}
 };
 
 export function OIDCConnections() {
   const [connections, setConnections] = useState([]);
+  const [attributeMappingJson, setAttributeMappingJson] = useState({});
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -155,12 +159,25 @@ export function OIDCConnections() {
       return;
     }
 
+    let attributeMapping = {};
+    try {
+      attributeMapping = Object.assign(attributeMappingJson, {});
+    } catch (err) {
+      toast.error('Invalid JSON in attribute mapping');
+      return;
+    }
+
+    const submitData = {
+      ...formData,
+      attribute_mapping: attributeMapping
+    };
+
     try {
       if (isEditing) {
-        await updateOIDCConnection(formData.id, formData);
+        await updateOIDCConnection(formData.id, submitData);
         toast.success('OIDC connection updated successfully');
       } else {
-        await createOIDCConnection(formData);
+        await createOIDCConnection(submitData);
         toast.success('OIDC connection created successfully');
       }
       setDialogOpen(false);
@@ -177,15 +194,6 @@ export function OIDCConnections() {
       day: 'numeric',
       year: 'numeric'
     });
-  };
-
-  const getProviderIcon = (issuerUrl) => {
-    if (issuerUrl?.includes('google')) return '🔵';
-    if (issuerUrl?.includes('microsoft') || issuerUrl?.includes('azure')) return '🟢';
-    if (issuerUrl?.includes('github')) return '⚫';
-    if (issuerUrl?.includes('auth0')) return '🔴';
-    if (issuerUrl?.includes('okta')) return '🔷';
-    return '🟣';
   };
 
   return (
@@ -433,11 +441,14 @@ export function OIDCConnections() {
                   className="w-full justify-between"
                   data-testid="advanced-toggle"
                 >
-                  <span>Advanced: Endpoint Overrides</span>
+                  <span>Advanced Settings</span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-4">
+                <div className="space-y-2">
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={"Map IdP SAML attributes to OIDC standard claims"} />
+                </div>
                 <p className="text-xs text-muted-foreground">
                   Override auto-discovered endpoints if needed
                 </p>
