@@ -122,7 +122,7 @@ function Sidebar({ mobile = false, onClose }) {
       {/* Logo */}
       <div className="flex h-16 items-center gap-3 px-6 border-b border-border/40">
         <img 
-          src="/mascot.png" 
+          src={window._env_.SHYNTR_PATH_PREFIX + "mascot.png"}
           alt="Shyntr Mascot" 
           className="h-10 w-10 object-contain"
         />
@@ -181,7 +181,7 @@ export function Layout({ children }) {
         
         <div className="flex items-center gap-2">
           <img 
-            src="/mascot.png" 
+            src={window._env_.SHYNTR_PATH_PREFIX + "mascot.png"}
             alt="Shyntr" 
             className="h-8 w-8 object-contain"
           />

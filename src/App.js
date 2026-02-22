@@ -14,7 +14,7 @@ import { Toaster } from "./components/ui/sonner";
 function App() {
   return (
     <ThemeProvider defaultTheme="dark" storageKey="shyntr-theme">
-      <BrowserRouter>
+      <BrowserRouter basename={window._env_?.SHYNTR_PATH_PREFIX || "/"}>
         <Layout>
           <Routes>
             <Route path="/" element={<Dashboard />} />
