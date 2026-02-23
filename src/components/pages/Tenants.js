@@ -233,7 +233,7 @@ export function Tenants() {
                         </DropdownMenuLabel>
                         <DropdownMenuSeparator />
 
-                        {getEndpoints(tenant.name).map((ep, idx) => {
+                        {getEndpoints(tenant.id).map((ep, idx) => {
                           const Icon = ep.icon;
                           return (
                             <DropdownMenuItem key={idx} className="flex flex-col items-start p-3 gap-2 cursor-default focus:bg-muted/50">
