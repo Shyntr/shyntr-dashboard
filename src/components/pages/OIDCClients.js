@@ -467,6 +467,16 @@ export function OIDCClients() {
                                 </div>
 
                                 <div className="space-y-2">
+                                    <Label>Post Logout Redirect URIs</Label>
+                                    <MultiInput
+                                        values={formData.post_logout_redirect_uris}
+                                        onChange={(values) => setFormData({...formData, post_logout_redirect_uris: values})}
+                                        placeholder="https://app.example.com/logout/callback"
+                                        testId="oidc-post-logout-redirect-uri"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
                                     <Label>Allowed CORS Origins</Label>
                                     <MultiInput
                                         values={formData.allowed_cors_origins}
@@ -581,7 +591,8 @@ export function OIDCClients() {
                                         </div>
                                         <Switch
                                             checked={formData.public}
-                                            onCheckedChange={(checked) => setFormData({...formData, public: checked})}
+                                            disabled={formData.token_endpoint_auth_method === "none"}
+                                            onCheckedChange={(checked) => setFormData({...formData, public: formData.token_endpoint_auth_method === "none" || checked})}
                                             data-testid="oidc-public-toggle"
                                         />
                                     </div>
