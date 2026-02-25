@@ -71,6 +71,12 @@ const RESPONSE_TYPES = [
     'code id_token token'
 ];
 
+const RESPONSE_MODES = [
+    'query',
+    'fragment',
+    'form_post'
+];
+
 const RESPONSE_TYPE_LABELS = {
     'code': 'Code',
     'token': 'Token',
@@ -95,6 +101,8 @@ const defaultClient = {
     client_secret: '',
     redirect_uris: [''],
     allowed_cors_origins: [''],
+    post_logout_redirect_uris: [''],
+    response_modes: ['query', 'fragment', 'form_post'],
     grant_types: ['authorization_code'],
     response_types: ['code'],
     scopes: ['openid', 'profile', 'email'],
@@ -186,6 +194,7 @@ export function OIDCClients() {
             ...formData,
             redirect_uris: formData.redirect_uris.filter(u => u.trim()),
             allowed_cors_origins: formData.allowed_cors_origins.filter(o => o.trim()),
+            post_logout_redirect_uris: (formData.post_logout_redirect_uris || []).filter(u => u.trim()),
             scopes: formData.scopes.filter(s => s.trim()),
             audience: formData.audience.filter(a => a.trim())
         };
@@ -529,7 +538,26 @@ export function OIDCClients() {
                                         ))}
                                     </div>
                                 </div>
-
+                                <div className="space-y-2">
+                                    <Label>Response Modes</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {RESPONSE_MODES.map((mode) => (
+                                            <Badge
+                                                key={mode}
+                                                variant="outline"
+                                                className={`cursor-pointer transition-colors ${
+                                                    (formData.response_modes || []).includes(mode)
+                                                        ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
+                                                        : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
+                                                }`}
+                                                onClick={() => toggleArrayItem(formData.response_modes || [], mode, setFormData, 'response_modes')}
+                                                data-testid={`response-mode-${mode}`}
+                                            >
+                                                {mode}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
                                 <div className="space-y-2">
                                     <Label>Scopes (comma-separated)</Label>
                                     <Input

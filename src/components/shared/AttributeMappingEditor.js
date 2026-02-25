@@ -1,9 +1,9 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Pencil, X, Check, ArrowRight } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
+import React, {useState} from 'react';
+import {Plus, Trash2, Pencil, X, Check, ArrowRight} from 'lucide-react';
+import {Button} from '../ui/button';
+import {Input} from '../ui/input';
+import {Label} from '../ui/label';
+import {Badge} from '../ui/badge';
 import {
     Table,
     TableBody,
@@ -20,7 +20,19 @@ import {
     SelectValue,
 } from '../ui/select';
 
-export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle = ""  }) {
+const STANDARD_CLAIMS = [
+    { value: 'sub', label: 'Subject (User ID)' },
+    { value: 'email', label: 'Email Address' },
+    { value: 'name', label: 'Full Name' },
+    { value: 'given_name', label: 'First Name' },
+    { value: 'family_name', label: 'Last Name' },
+    { value: 'preferred_username', label: 'Username' },
+    { value: 'roles', label: 'User Roles (Array)' },
+    { value: 'department', label: 'Department' },
+    { value: 'groups', label: 'Groups (Array)' }
+];
+
+export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = ""}) {
     // Convert incoming Object to Array for the Table
     const [rules, setRules] = useState(() => {
         return Object.entries(initialRules || {}).map(([key, val]) => ({
@@ -44,12 +56,12 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
     // --- Handlers for List View ---
 
     const handleAddNew = () => {
-        setDraftRule({ target: '', source: '', type: 'string', fallback: '', value: '' });
+        setDraftRule({target: '', source: '', type: 'string', fallback: '', value: ''});
         setEditingIndex(-1);
     };
 
     const handleEdit = (index) => {
-        setDraftRule({ ...rules[index] });
+        setDraftRule({...rules[index]});
         setEditingIndex(index);
     };
 
@@ -63,27 +75,25 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
 
     const saveDraft = () => {
         if (!draftRule.target || draftRule.target.trim() === '') {
-            // In a real app, you might want to show a toast error here
             return;
         }
 
         let newRules = [...rules];
         if (editingIndex === -1) {
-            newRules.push(draftRule); // Add new
+            newRules.push(draftRule);
         } else {
-            newRules[editingIndex] = draftRule; // Update existing
+            newRules[editingIndex] = draftRule;
         }
 
         setRules(newRules);
         emitChange(newRules);
-        setEditingIndex(null); // Close form, go back to table
+        setEditingIndex(null);
     };
 
     const cancelEdit = () => {
         setEditingIndex(null);
     };
 
-    // Convert the UI Array back to the JSON Map object expected by the Backend
     const emitChange = (currentRules) => {
         const mapObj = {};
         currentRules.forEach((r) => {
@@ -105,26 +115,30 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
             <div className="flex items-center justify-between">
                 <div>
                     <Label>Attribute Mapping (JSON)</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                        {subtitle || ""}
+                    <p className="text-xs text-muted-foreground mb-1">
+                        {subtitle || "Map external identity provider attributes to standard internal claims."}
+                    </p>
+                    <p className="text-[10px] text-primary/80 italic">
+                        * Mapped target fields will be injected directly into the user's tokens (login_claims).
                     </p>
                 </div>
                 {editingIndex === null && (
                     <Button onClick={handleAddNew} type="button" variant="outline" size="sm" className="h-8">
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Rule
+                        <Plus className="w-3.5 h-3.5 mr-1"/> Add Rule
                     </Button>
                 )}
             </div>
 
             {/* Editor Form (Visible only when adding or editing) */}
             {editingIndex !== null && (
-                <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
+                <div
+                    className="bg-muted/30 border border-border rounded-lg p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-center justify-between mb-2">
                         <h4 className="text-sm font-medium text-foreground">
                             {editingIndex === -1 ? 'Add New Rule' : 'Edit Rule'}
                         </h4>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEdit}>
-                            <X className="w-4 h-4 text-muted-foreground" />
+                            <X className="w-4 h-4 text-muted-foreground"/>
                         </Button>
                     </div>
 
@@ -136,8 +150,16 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 placeholder="e.g. email"
                                 className="h-8 font-mono text-xs"
                                 value={draftRule.target}
-                                onChange={(e) => setDraftRule({ ...draftRule, target: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, target: e.target.value})}
+                                list="standard-claims"
                             />
+                            <datalist id="standard-claims">
+                                {STANDARD_CLAIMS.map(claim => (
+                                    <option key={claim.value} value={claim.value}>
+                                        {claim.label}
+                                    </option>
+                                ))}
+                            </datalist>
                         </div>
 
                         <div className="space-y-1.5">
@@ -148,7 +170,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 className="h-8 font-mono text-xs"
                                 value={draftRule.source}
                                 disabled={!!draftRule.value}
-                                onChange={(e) => setDraftRule({ ...draftRule, source: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, source: e.target.value})}
                             />
                         </div>
 
@@ -156,10 +178,10 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                             <Label className="text-xs text-muted-foreground">Data Type</Label>
                             <Select
                                 value={draftRule.type}
-                                onValueChange={(val) => setDraftRule({ ...draftRule, type: val })}
+                                onValueChange={(val) => setDraftRule({...draftRule, type: val})}
                             >
                                 <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue placeholder="Type" />
+                                    <SelectValue placeholder="Type"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="string">String</SelectItem>
@@ -180,7 +202,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 className="h-8 font-mono text-xs"
                                 value={draftRule.fallback}
                                 disabled={!!draftRule.value}
-                                onChange={(e) => setDraftRule({ ...draftRule, fallback: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, fallback: e.target.value})}
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -190,7 +212,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 placeholder="e.g. tr_123"
                                 className="h-8 font-mono text-xs border-primary/30"
                                 value={draftRule.value}
-                                onChange={(e) => setDraftRule({ ...draftRule, value: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, value: e.target.value})}
                             />
                         </div>
                     </div>
@@ -200,7 +222,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                             Cancel
                         </Button>
                         <Button type="button" size="sm" onClick={saveDraft} disabled={!draftRule.target}>
-                            <Check className="w-3.5 h-3.5 mr-1" /> Save Rule
+                            <Check className="w-3.5 h-3.5 mr-1"/> Save Rule
                         </Button>
                     </div>
                 </div>
@@ -259,7 +281,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                                 onClick={() => handleEdit(idx)}
                                                 disabled={editingIndex !== null}
                                             >
-                                                <Pencil className="h-3.5 w-3.5" />
+                                                <Pencil className="h-3.5 w-3.5"/>
                                             </Button>
                                             <Button
                                                 type="button"
@@ -269,7 +291,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                                 onClick={() => handleDelete(idx)}
                                                 disabled={editingIndex !== null}
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <Trash2 className="h-3.5 w-3.5"/>
                                             </Button>
                                         </div>
                                     </TableCell>
