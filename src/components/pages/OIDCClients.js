@@ -157,6 +157,7 @@ export function OIDCClients() {
         setFormData({
             ...client,
             redirect_uris: client.redirect_uris?.length ? client.redirect_uris : [''],
+            post_logout_redirect_uris: client.post_logout_redirect_uris?.length ? client.post_logout_redirect_uris : [''],
             allowed_cors_origins: client.allowed_cors_origins?.length ? client.allowed_cors_origins : [''],
             audience: client.audience || []
         });
