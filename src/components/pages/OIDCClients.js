@@ -102,6 +102,7 @@ const defaultClient = {
     redirect_uris: [''],
     allowed_cors_origins: [''],
     post_logout_redirect_uris: [''],
+    backchannel_logout_uri: '',
     response_modes: ['query', 'fragment', 'form_post'],
     grant_types: ['authorization_code'],
     response_types: ['code'],
@@ -464,6 +465,17 @@ export function OIDCClients() {
                                             Leave empty to auto-generate a secure secret
                                         </p>
                                     )}
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="name">Backchannel Logout URI</Label>
+                                    <Input
+                                        id="backchannel-logout-uri-input"
+                                        value={formData.backchannel_logout_uri || ''}
+                                        onChange={(e) => setFormData({...formData, backchannel_logout_uri: e.target.value})}
+                                        placeholder="https://app.example.com/backchannel/logout"
+                                        data-testid="backchannel-logout-uri-input"
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
