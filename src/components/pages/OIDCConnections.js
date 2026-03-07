@@ -128,7 +128,7 @@ export function OIDCConnections() {
 
   const handleDelete = async () => {
     try {
-      await deleteOIDCConnection(selectedConnection.id);
+      await deleteOIDCConnection(selectedConnection.id, selectedConnection.tenant_id);
       toast.success('OIDC connection deleted successfully');
       fetchConnections();
     } catch (error) {
@@ -152,10 +152,6 @@ export function OIDCConnections() {
     }
     if (!formData.client_id.trim()) {
       toast.error('Client ID is required');
-      return;
-    }
-    if (!formData.client_secret.trim()) {
-      toast.error('Client Secret is required');
       return;
     }
 
@@ -409,7 +405,7 @@ export function OIDCConnections() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Client Secret *</Label>
+                <Label>Client Secret</Label>
                 <SecretInput
                   value={formData.client_secret}
                   onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}

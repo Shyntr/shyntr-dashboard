@@ -104,7 +104,7 @@ function SAMLClients() {
 
     const handleDelete = async () => {
         try {
-            await deleteSAMLClient(selectedClient.id);
+            await deleteSAMLClient(selectedClient.id, selectedClient.tenant_id);
             toast.success('SAML client deleted successfully');
             fetchClients();
         } catch (error) {
@@ -341,48 +341,25 @@ function SAMLClients() {
                             </TabsList>
 
                             <TabsContent value="basic" className="space-y-4 mt-4">
-                                <div className="space-y-2">
-                                    <Label>Tenant *</Label>
-                                    <Select
-                                        value={formData.tenant_id}
-                                        onValueChange={(value) => setFormData({...formData, tenant_id: value})}
-                                        // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
-                                    >
-                                        <SelectTrigger>
-                                            <SelectValue placeholder="Select a tenant"/>
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            {tenants.map((tenant) => (
-                                                <SelectItem key={tenant.id} value={tenant.id}>
-                                                    {tenant.display_name || tenant.name}
-                                                </SelectItem>
-                                            ))}
-                                        </SelectContent>
-                                    </Select>
-                                </div>
-                                <div className="space-y-2">
-                                    <Label htmlFor="metadata-url">SP Metadata URL</Label>
-                                    <Input
-                                        id="metadata-url"
-                                        value={formData.metadata_url || ''}
-                                        onChange={(e) => setFormData({...formData, metadata_url: e.target.value})}
-                                        placeholder="https://jira.corp.com/SAML/metadata"
-                                        data-testid="saml-metadata-url-input"
-                                    />
-                                    <p className="text-xs text-muted-foreground">Provide a Metadata URL to auto-fill SP details. If provided, fields below are optional.</p>
-                                </div>
-
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label htmlFor="entity-id">Entity ID {formData.metadata_url ? '' : '*'}</Label>
-                                        <Input
-                                            id="entity-id"
-                                            value={formData.entity_id}
-                                            onChange={(e) => setFormData({...formData, entity_id: e.target.value})}
-                                            placeholder="https://jira.corp.com/shyntr-app"
-                                            data-testid="saml-entity-id-input"
-                                        />
-                                        <p className="text-xs text-muted-foreground">Unique URI identifying this SP</p>
+                                        <Label>Tenant *</Label>
+                                        <Select
+                                            value={formData.tenant_id}
+                                            onValueChange={(value) => setFormData({...formData, tenant_id: value})}
+                                            // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
+                                        >
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="Select a tenant"/>
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {tenants.map((tenant) => (
+                                                    <SelectItem key={tenant.id} value={tenant.id}>
+                                                        {tenant.display_name || tenant.name}
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="name">Display Name</Label>
@@ -395,9 +372,32 @@ function SAMLClients() {
                                         />
                                     </div>
                                 </div>
-
                                 <div className="space-y-2">
-                                    <Label htmlFor="acs-url">ACS URL (Assertion Consumer Service) {formData.metadata_url ? '' : '*'}</Label>
+                                    <Label htmlFor="metadata-url">SP Metadata URL</Label>
+                                    <Input
+                                        id="metadata-url"
+                                        value={formData.metadata_url || ''}
+                                        onChange={(e) => setFormData({...formData, metadata_url: e.target.value})}
+                                        placeholder="https://jira.corp.com/SAML/metadata"
+                                        data-testid="saml-metadata-url-input"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Provide a Metadata URL to auto-fill SP
+                                        details. If provided, fields below are optional.</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="entity-id">Entity ID {formData.metadata_url ? '' : '*'}</Label>
+                                    <Input
+                                        id="entity-id"
+                                        value={formData.entity_id}
+                                        onChange={(e) => setFormData({...formData, entity_id: e.target.value})}
+                                        placeholder="https://jira.corp.com/shyntr-app"
+                                        data-testid="saml-entity-id-input"
+                                    />
+                                    <p className="text-xs text-muted-foreground">Unique URI identifying this SP</p>
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="acs-url">ACS URL (Assertion Consumer
+                                        Service) {formData.metadata_url ? '' : '*'}</Label>
                                     <Input
                                         id="acs-url"
                                         value={formData.acs_url}
@@ -405,7 +405,8 @@ function SAMLClients() {
                                         placeholder="https://jira.corp.com/SAML/ACS"
                                         data-testid="saml-acs-url-input"
                                     />
-                                    <p className="text-xs text-muted-foreground">Where Shyntr sends the SAML assertion</p>
+                                    <p className="text-xs text-muted-foreground">Where Shyntr sends the SAML
+                                        assertion</p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -430,19 +431,24 @@ function SAMLClients() {
                                             rows={5}
                                             className="font-mono text-sm"
                                         />
-                                        <p className="text-xs text-muted-foreground">Optional: Base SP Certificate (PEM)</p>
+                                        <p className="text-xs text-muted-foreground">Optional: Base SP Certificate
+                                            (PEM)</p>
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>SP Encryption Certificate</Label>
                                         <Textarea
                                             value={formData.sp_encryption_certificate || ''}
-                                            onChange={(e) => setFormData({...formData, sp_encryption_certificate: e.target.value})}
+                                            onChange={(e) => setFormData({
+                                                ...formData,
+                                                sp_encryption_certificate: e.target.value
+                                            })}
                                             placeholder={`-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
                                             rows={5}
                                             className="font-mono text-sm"
                                         />
-                                        <p className="text-xs text-muted-foreground">Optional: Separate cert for encryption</p>
+                                        <p className="text-xs text-muted-foreground">Optional: Separate cert for
+                                            encryption</p>
                                     </div>
                                 </div>
                             </TabsContent>

@@ -173,7 +173,7 @@ export function OIDCClients() {
 
     const handleDelete = async () => {
         try {
-            await deleteOIDCClient(selectedClient.client_id);
+            await deleteOIDCClient(selectedClient.client_id, selectedClient.tenant_id);
             toast.success('Client deleted successfully');
             fetchClients();
         } catch (error) {
@@ -432,7 +432,7 @@ export function OIDCClients() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Tenant</Label>
+                                    <Label>Tenant *</Label>
                                     <Select
                                         value={formData.tenant_id}
                                         onValueChange={(value) => setFormData({...formData, tenant_id: value})}
@@ -454,15 +454,21 @@ export function OIDCClients() {
                                 <div className="space-y-2">
                                     <Label>Client Secret</Label>
                                     <SecretInput
+                                        readOnly={formData.token_endpoint_auth_method === "none"}
                                         value={formData.client_secret}
                                         onChange={(e) => setFormData({...formData, client_secret: e.target.value})}
                                         placeholder="Leave empty to auto-generate"
-                                        showCopy={isEditing}
+                                        showCopy={isEditing && formData.token_endpoint_auth_method !== "none"}
                                         testId="oidc-client-secret-input"
                                     />
-                                    {!isEditing && (
+                                    {!isEditing && formData.token_endpoint_auth_method !== "none" && (
                                         <p className="text-xs text-muted-foreground">
                                             Leave empty to auto-generate a secure secret
+                                        </p>
+                                    )}
+                                    {formData.token_endpoint_auth_method === "none" && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Leave empty for public clients
                                         </p>
                                     )}
                                 </div>
@@ -479,7 +485,7 @@ export function OIDCClients() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Redirect URIs</Label>
+                                    <Label>Redirect URIs *</Label>
                                     <MultiInput
                                         values={formData.redirect_uris}
                                         onChange={(values) => setFormData({...formData, redirect_uris: values})}
@@ -605,7 +611,10 @@ export function OIDCClients() {
                                         value={formData.token_endpoint_auth_method}
                                         onValueChange={(value) => setFormData({
                                             ...formData,
-                                            token_endpoint_auth_method: value
+                                            token_endpoint_auth_method: value,
+                                            enforce_pkce: value === "none" ? true : formData.enforce_pkce,
+                                            public: value === "none",
+                                            client_secret: value === "none" ? "" : formData.client_secret,
                                         })}
                                     >
                                         <SelectTrigger data-testid="oidc-auth-method-select">
@@ -632,8 +641,8 @@ export function OIDCClients() {
                                         </div>
                                         <Switch
                                             checked={formData.public}
-                                            disabled={formData.token_endpoint_auth_method === "none"}
-                                            onCheckedChange={(checked) => setFormData({...formData, public: formData.token_endpoint_auth_method === "none" || checked})}
+                                            disabled={formData.token_endpoint_auth_method !== "none"}
+                                            onCheckedChange={(checked) => setFormData({...formData, public: checked})}
                                             data-testid="oidc-public-toggle"
                                         />
                                     </div>
