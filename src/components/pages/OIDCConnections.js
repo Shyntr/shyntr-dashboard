@@ -443,7 +443,8 @@ export function OIDCConnections() {
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={"Map external OIDC claims to standard internal claims"} />
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson}
+                                          subtitle={"Map external OIDC claims to standard internal claims"} tenantId={formData.tenant_id}/>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Override auto-discovered endpoints if needed

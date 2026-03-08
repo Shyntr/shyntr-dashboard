@@ -530,7 +530,8 @@ function SAMLClients() {
                                 <div className="space-y-2">
                                     <AttributeMappingEditor initialRules={formData.attribute_mapping || {}}
                                                             onChange={setAttributeMappingJson}
-                                                            subtitle={"Map SAML assertion attributes to standard claims"}/>
+                                                            subtitle={"Map SAML assertion attributes to standard claims"}
+                                                            tenantId={formData.tenant_id}/>
                                 </div>
                             </TabsContent>
                         </Tabs>

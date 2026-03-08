@@ -63,4 +63,10 @@ export const createOIDCConnection = (data) => api.post('/oidc-connections', data
 export const updateOIDCConnection = (id, data) => api.put(`/oidc-connections/${id}`, data);
 export const deleteOIDCConnection = (id, tenantId) => api.delete(`/oidc-connections/${tenantId}/${id}`);
 
+export const getScopes = (tenantId) => api.get(`/tenants/${tenantId}/scopes`);
+export const getScope = (tenantId, id) => api.get(`/tenants/${tenantId}/scopes/${id}`);
+export const createScope = (tenantId, data) => api.post(`/tenants/${tenantId}/scopes`, data);
+export const updateScope = (tenantId, id, data) => api.put(`/tenants/${tenantId}/scopes/${id}`, data);
+export const deleteScope = (tenantId, id) => api.delete(`/tenants/${tenantId}/scopes/${id}`);
+
 export default api;
