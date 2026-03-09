@@ -124,7 +124,7 @@ export function SAMLConnections() {
 
   const handleDelete = async () => {
     try {
-      await deleteSAMLConnection(selectedConnection.id);
+      await deleteSAMLConnection(selectedConnection.id, selectedConnection.tenant_id);
       toast.success('SAML connection deleted successfully');
       fetchConnections();
     } catch (error) {
@@ -520,7 +520,8 @@ export function SAMLConnections() {
 
               <TabsContent value="mapping" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={"Map IdP SAML attributes to OIDC standard claims"} />
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson}
+                                          subtitle={"Map IdP SAML attributes to OIDC standard claims"} tenantId={formData.tenant_id}/>
                 </div>
               </TabsContent>
             </Tabs>

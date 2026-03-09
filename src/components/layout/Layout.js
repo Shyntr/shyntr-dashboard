@@ -9,6 +9,7 @@ import {
   Sun,
   Moon,
   ChevronDown,
+  Fingerprint,
   Settings as SettingsIcon
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -36,6 +37,7 @@ const navigation = [
     ]
   },
   { name: 'Tenants', href: '/tenants', icon: Building2 },
+  { name: 'Scopes', href: '/scopes', icon: Fingerprint },
   { name: 'Settings', href: '/settings', icon: SettingsIcon },
 ];
 

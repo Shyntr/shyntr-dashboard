@@ -93,7 +93,7 @@ export function SSOIntegrations() {
 
   const handleDelete = async () => {
     try {
-      await deleteSAMLConnection(selectedConnection.id);
+      await deleteSAMLConnection(selectedConnection.id, selectedConnection.tenant_id);
       toast.success('SAML connection deleted successfully');
       fetchConnections();
     } catch (error) {

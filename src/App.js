@@ -8,6 +8,7 @@ import SAMLClients from "./components/pages/SAMLClients";
 import { SAMLConnections } from "./components/pages/SAMLConnections";
 import { OIDCConnections } from "./components/pages/OIDCConnections";
 import { Tenants } from "./components/pages/Tenants";
+import { Scopes } from "./components/pages/Scopes";
 import { Settings } from "./components/pages/Settings";
 import { Toaster } from "./components/ui/sonner";
 
@@ -26,8 +27,9 @@ function App() {
             <Route path="/connections" element={<Navigate to="/connections/oidc" replace />} />
             <Route path="/connections/oidc" element={<OIDCConnections />} />
             <Route path="/connections/saml" element={<SAMLConnections />} />
-            {/* Tenants */}
+            {/* Tenants & Identity */}
             <Route path="/tenants" element={<Tenants />} />
+            <Route path="/scopes" element={<Scopes />} />
             <Route path="/settings" element={<Settings />} />
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
