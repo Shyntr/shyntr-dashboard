@@ -545,7 +545,7 @@ export function OIDCClients() {
                                                 key={type}
                                                 variant="outline"
                                                 className={`cursor-pointer transition-colors ${
-                                                    formData.response_types.includes(type)
+                                                    (formData.response_types || []).includes(type)
                                                         ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
                                                         : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
                                                 }`}
