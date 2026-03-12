@@ -31,17 +31,16 @@ import {
 } from '../../lib/api';
 
 const GRANT_TYPES = [
-    'authorization_code', 'refresh_token', 'client_credentials', 'implicit', 'urn:ietf:params:oauth:grant-type:jwt-bearer'
+    'authorization_code', 'refresh_token', 'client_credentials'
 ];
 const RESPONSE_TYPES = [
-    'code', 'token', 'id_token', 'code id_token', 'code token', 'code id_token token'
+    'code'
 ];
 const RESPONSE_MODES = [
-    'query', 'fragment', 'form_post'
+    'query', 'form_post'
 ];
 const RESPONSE_TYPE_LABELS = {
-    'code': 'Code', 'token': 'Token', 'id_token': 'ID Token',
-    'code id_token': 'Code + ID Token (Hybrid)', 'code token': 'Code + Token (Hybrid)', 'code id_token token': 'Code + ID Token + Token (Hybrid)'
+    'code': 'Code'
 };
 const AUTH_METHODS = [
     {value: 'client_secret_basic', label: 'Client Secret Basic'},
@@ -415,7 +414,7 @@ export function OIDCClients() {
                                 </div>
                                 <div className="space-y-2">
                                     <Label>{t('common.scopes_csv', 'Scopes (comma-separated)')}</Label>
-                                    <Input value={formData.scopes.join(', ')} onChange={(e) => setFormData({...formData, scopes: e.target.value.split(',').map(s => s.trim()).filter(Boolean)})} placeholder="openid, profile, email" data-testid="oidc-scopes-input" />
+                                    <Input value={formData.scopes.join(', ')} onChange={(e) => setFormData({...formData, scopes: e.target.value.split(', ').map(s => s.trim()).filter(Boolean)})} placeholder="openid, profile, email" data-testid="oidc-scopes-input" />
                                 </div>
                                 <div className="space-y-2">
                                     <Label>{t('oidc_clients.audience', 'Audience (comma-separated)')}</Label>
@@ -441,14 +440,14 @@ export function OIDCClients() {
                                             <Label className="text-sm font-medium">{t('common.public_client', 'Public Client')}</Label>
                                             <p className="text-xs text-muted-foreground">{t('oidc_clients.public_client_desc', 'For SPAs and mobile apps (no secret)')}</p>
                                         </div>
-                                        <Switch checked={formData.public} disabled={formData.token_endpoint_auth_method !== "none"} onCheckedChange={(checked) => setFormData({...formData, public: checked})} data-testid="oidc-public-toggle" />
+                                        <Switch checked={formData.public} disabled={formData.token_endpoint_auth_method === "none"} onCheckedChange={(checked) => setFormData({...formData, public: checked})} data-testid="oidc-public-toggle" />
                                     </div>
                                     <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">{t('oidc_clients.enforce_pkce', 'Enforce PKCE')}</Label>
                                             <p className="text-xs text-muted-foreground">{t('oidc_clients.enforce_pkce_desc', 'Proof Key for Code Exchange')}</p>
                                         </div>
-                                        <Switch checked={formData.enforce_pkce} onCheckedChange={(checked) => setFormData({ ...formData, enforce_pkce: checked })} data-testid="oidc-pkce-toggle" />
+                                        <Switch disabled checked={formData.enforce_pkce} onCheckedChange={(checked) => setFormData({ ...formData, enforce_pkce: checked })} data-testid="oidc-pkce-toggle" />
                                     </div>
                                 </div>
                             </TabsContent>
