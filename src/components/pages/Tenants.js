@@ -1,4 +1,5 @@
 import {useEffect, useState} from 'react';
+import { useTranslation } from 'react-i18next';
 import {
     Plus, Pencil, Trash2, Building2, RefreshCw, Lock,
     Globe, ShieldCheck, FileCode2, ExternalLink, Link as LinkIcon, Copy,
@@ -41,6 +42,7 @@ const defaultTenant = {
 const BACKEND_URL = window._env_?.SHYNTR_PUBLIC_BACKEND_URL || process.env.REACT_APP_PUBLIC_BACKEND_URL || "http://localhost:7496";
 
 export function Tenants() {
+    const { t } = useTranslation();
     const [tenants, setTenants] = useState([]);
     const [loading, setLoading] = useState(true);
     const [dialogOpen, setDialogOpen] = useState(false);
@@ -91,7 +93,7 @@ export function Tenants() {
 
     const handleEdit = (tenant) => {
         if (tenant.name === 'default') {
-            toast.error('Cannot edit the default tenant');
+            toast.error(t('tenants.cannot_edit_default', 'Cannot edit the default tenant'));
             return;
         }
         setFormData(tenant);
@@ -101,7 +103,7 @@ export function Tenants() {
 
     const handleDeleteClick = (tenant) => {
         if (tenant.name === 'default') {
-            toast.error('Cannot delete the default tenant');
+            toast.error(t('tenants.cannot_delete_default', 'Cannot delete the default tenant'));
             return;
         }
         setSelectedTenant(tenant);
@@ -111,7 +113,7 @@ export function Tenants() {
     const handleDelete = async () => {
         try {
             await deleteTenant(selectedTenant.id);
-            toast.success('Tenant deleted successfully');
+            toast.success(t('tenants.delete_success', 'Tenant deleted successfully'));
             fetchTenants();
         } catch (error) {
             toast.error(error.message || 'Failed to delete tenant');
@@ -123,7 +125,6 @@ export function Tenants() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
         if (!formData.name.trim()) {
             toast.error('Tenant name is required');
             return;
@@ -158,7 +159,7 @@ export function Tenants() {
 
     const copyToClipboard = (text) => {
         navigator.clipboard.writeText(text);
-        toast.success('URL copied to clipboard');
+        toast.success(t('common.copied', 'URL copied to clipboard'));
     };
 
     const getEndpoints = (tenantId) => [
@@ -220,10 +221,10 @@ export function Tenants() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-2">
                     <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
-                        Tenants
+                        {t('tenants.title', 'Tenants')}
                     </h1>
                     <p className="text-sm text-muted-foreground">
-                        Manage isolation zones for multi-tenant deployments
+                        {t('tenants.subtitle', 'Manage isolation zones for multi-tenant deployments')}
                     </p>
                 </div>
                 <Button
@@ -232,7 +233,7 @@ export function Tenants() {
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
                 >
                     <Plus className="h-4 w-4 mr-2"/>
-                    Create Tenant
+                    {t('tenants.create_tenant', 'Create Tenant')}
                 </Button>
             </div>
 
@@ -274,7 +275,7 @@ export function Tenants() {
                                         {tenant.name === 'default' && (
                                             <Badge variant="outline"
                                                    className="bg-emerald-500/15 text-emerald-500 border-emerald-500/20">
-                                                Default
+                                                {t('tenants.default', 'Default')}
                                             </Badge>
                                         )}
 
@@ -283,13 +284,13 @@ export function Tenants() {
                                                 <Button variant="outline" size="sm"
                                                         className="h-8 px-2 gap-1.5 rounded-lg bg-muted/30">
                                                     <LinkIcon className="w-3.5 h-3.5"/>
-                                                    <span className="hidden sm:inline-block text-xs">Endpoints</span>
+                                                    <span className="hidden sm:inline-block text-xs">{t('tenants.endpoints', 'Endpoints')}</span>
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-72 rounded-xl">
                                                 <DropdownMenuLabel
                                                     className="text-xs text-muted-foreground uppercase tracking-wider">
-                                                    {tenant.name} Endpoints
+                                                    {tenant.name} {t('tenants.endpoints', 'Endpoints')}
                                                 </DropdownMenuLabel>
                                                 <DropdownMenuSeparator/>
 
@@ -344,7 +345,7 @@ export function Tenants() {
                                     </p>
                                 )}
                                 <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>Created {formatDate(tenant.created_at)}</span>
+                                    <span>{t('common.created')} {formatDate(tenant.created_at)}</span>
                                 </div>
                                 {tenant.name !== 'default' && (
                                     <div className="flex gap-2 pt-2 border-t border-border/40 mt-auto">
@@ -355,7 +356,7 @@ export function Tenants() {
                                             className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary/30"
                                         >
                                             <Fingerprint className="h-3 w-3 mr-1"/>
-                                            Login Methods
+                                            {t('tenants.login_methods')}
                                         </Button>
                                         <Button
                                             variant="outline"
@@ -365,7 +366,7 @@ export function Tenants() {
                                             className="flex-1"
                                         >
                                             <Pencil className="h-3 w-3 mr-1"/>
-                                            Edit
+                                            {t('common.edit', 'Edit')}
                                         </Button>
                                         <Button
                                             variant="outline"
@@ -375,7 +376,7 @@ export function Tenants() {
                                             className="flex-1 hover:text-destructive hover:border-destructive"
                                         >
                                             <Trash2 className="h-3 w-3 mr-1"/>
-                                            Delete
+                                            {t('common.delete', 'Delete')}
                                         </Button>
                                     </div>
                                 )}
@@ -389,17 +390,13 @@ export function Tenants() {
             <Card className="bg-muted/30 border-border/40">
                 <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                        <div
-                            className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
                             <Building2 className="h-5 w-5 text-primary"/>
                         </div>
                         <div>
-                            <h3 className="font-heading font-semibold mb-1">About Tenants</h3>
+                            <h3 className="font-heading font-semibold mb-1">{t('tenants.about_title', 'About Tenants')}</h3>
                             <p className="text-sm text-muted-foreground">
-                                Tenants provide isolation zones for different organizations or environments.
-                                Each tenant can have its own set of clients, connections, and configurations.
-                                The <code className="px-1 bg-muted rounded">default</code> tenant is always present and
-                                cannot be deleted.
+                                {t('tenants.about_desc', 'Tenants provide isolation zones for different organizations or environments. Each tenant can have its own set of clients, connections, and configurations. The default tenant is always present and cannot be deleted.')}
                             </p>
                         </div>
                     </div>
@@ -411,19 +408,16 @@ export function Tenants() {
                 <DialogContent className="max-w-lg bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading">
-                            {isEditing ? 'Edit Tenant' : 'Create Tenant'}
+                            {isEditing ? t('tenants.edit_tenant', 'Edit Tenant') : t('tenants.create_tenant', 'Create Tenant')}
                         </DialogTitle>
                         <DialogDescription>
-                            {isEditing
-                                ? 'Update tenant details'
-                                : 'Create a new isolation zone for your deployment'
-                            }
+                            {isEditing ? t('tenants.edit_desc', 'Update tenant details') : t('tenants.create_desc', 'Create a new isolation zone for your deployment') }
                         </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleSubmit} className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="tenant-name">Tenant Name *</Label>
+                            <Label htmlFor="tenant-name">{t('tenants.tenant_name', 'Tenant Name')} *</Label>
                             <Input
                                 id="tenant-name"
                                 value={formData.name}
@@ -433,12 +427,12 @@ export function Tenants() {
                                 data-testid="tenant-name-input"
                             />
                             <p className="text-xs text-muted-foreground">
-                                Lowercase alphanumeric with hyphens only (e.g., acme-corp)
+                                {t('tenants.name_hint', 'Lowercase alphanumeric with hyphens only (e.g., acme-corp)')}
                             </p>
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="display-name">Display Name</Label>
+                            <Label htmlFor="display-name">{t('common.display_name', 'Display Name')}</Label>
                             <Input
                                 id="display-name"
                                 value={formData.display_name || ''}
@@ -449,7 +443,7 @@ export function Tenants() {
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="description">Description</Label>
+                            <Label htmlFor="description">{t('common.description', 'Description')}</Label>
                             <Textarea
                                 id="description"
                                 value={formData.description || ''}
@@ -467,14 +461,14 @@ export function Tenants() {
                                 onClick={() => setDialogOpen(false)}
                                 data-testid="cancel-tenant-btn"
                             >
-                                Cancel
+                                {t('common.cancel', 'Cancel')}
                             </Button>
                             <Button
                                 type="submit"
                                 data-testid="save-tenant-btn"
                                 className="bg-primary hover:bg-primary/90"
                             >
-                                {isEditing ? 'Update Tenant' : 'Create Tenant'}
+                                {isEditing ? t('common.update', 'Update') : t('common.create', 'Create')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -487,10 +481,10 @@ export function Tenants() {
                     <DialogHeader>
                         <DialogTitle className="font-heading flex items-center gap-2">
                             <Fingerprint className="h-5 w-5 text-primary"/>
-                            Login Methods: {selectedAuthTenant?.display_name || selectedAuthTenant?.name}
+                            {t('tenants.login_methods', 'Login Methods')}: {selectedAuthTenant?.display_name || selectedAuthTenant?.name}
                         </DialogTitle>
                         <DialogDescription>
-                            Configure which authentication methods are available for users in this tenant.
+                            {t('tenants.login_methods_desc', 'Configure which authentication methods are available for users in this tenant.')}
                         </DialogDescription>
                     </DialogHeader>
 
@@ -498,12 +492,11 @@ export function Tenants() {
                         <div className="space-y-6 py-4">
                             {/* Local Auth */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Local
-                                    Authentication</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('tenants.local_auth', 'Local Authentication')}</h4>
                                 <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/20">
                                     <div className="flex flex-col">
-                                        <span className="font-medium text-sm">Password Login</span>
-                                        <span className="text-xs text-muted-foreground">Standard login with username/email and password</span>
+                                        <span className="font-medium text-sm">{t('tenants.password_login', 'Password Login')}</span>
+                                        <span className="text-xs text-muted-foreground">{t('tenants.password_login_desc', 'Standard login with username/email and password')}</span>
                                     </div>
                                     <Switch
                                         checked={selectedAuthTenant.login_methods.includes('password')}
@@ -514,11 +507,9 @@ export function Tenants() {
 
                             {/* External Auth: OIDC */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Social
-                                    & OIDC Providers</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('tenants.oidc_providers', 'Social & OIDC Providers')}</h4>
                                 {availableOIDC.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').length === 0 ? (
-                                    <p className="text-xs text-muted-foreground italic">No OIDC providers configured for
-                                        this tenant.</p>
+                                    <p className="text-xs text-muted-foreground italic">{t('tenants.no_oidc_providers', 'No OIDC providers configured for this tenant.')}</p>
                                 ) : (
                                     <div className="space-y-2">
                                         {availableOIDC.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').map(provider => (
@@ -540,11 +531,9 @@ export function Tenants() {
 
                             {/* External Auth: SAML */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Enterprise
-                                    SSO (SAML)</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">{t('tenants.saml_providers', 'Enterprise SSO (SAML)')}</h4>
                                 {availableSAML.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').length === 0 ? (
-                                    <p className="text-xs text-muted-foreground italic">No SAML providers configured for
-                                        this tenant.</p>
+                                    <p className="text-xs text-muted-foreground italic">{t('tenants.no_saml_providers', 'No SAML providers configured for this tenant.')}</p>
                                 ) : (
                                     <div className="space-y-2">
                                         {availableSAML.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').map(provider => (
@@ -567,8 +556,8 @@ export function Tenants() {
                     )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setAuthMethodsOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAuthMethods} className="bg-primary hover:bg-primary/90">Save</Button>
+                        <Button variant="outline" onClick={() => setAuthMethodsOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
+                        <Button onClick={handleSaveAuthMethods} className="bg-primary hover:bg-primary/90">{t('common.save', 'Save')}</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
@@ -577,32 +566,31 @@ export function Tenants() {
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
+                        <AlertDialogTitle>{t('tenants.delete_title', 'Delete Tenant')}</AlertDialogTitle>
                         <AlertDialogDescription className="space-y-3">
                             <p>
-                                Are you sure you want to delete the
-                                tenant <strong>{selectedTenant?.display_name || selectedTenant?.name}</strong>?
+                                {t('common.delete_confirm', 'Are you sure you want to delete')} <strong>{selectedTenant?.display_name || selectedTenant?.name}</strong>?
                             </p>
                             <div
                                 className="bg-destructive/10 text-destructive border border-destructive/20 p-3 rounded-md">
-                                <strong>Warning:</strong> Deleting this tenant will permanently remove all associated:
+                                <strong>{t('common.warning', 'Warning')}:</strong> {t('tenants.delete_warning', 'Deleting this tenant will permanently remove all associated:')}
                                 <ul className="list-disc pl-5 mt-1">
-                                    <li>OIDC & SAML Clients (Applications)</li>
-                                    <li>OIDC & SAML Connections (Providers)</li>
-                                    <li>All related session and login data</li>
+                                    <li>{t('tenants.delete_assoc_clients', 'OIDC & SAML Clients (Applications)')}</li>
+                                    <li>{t('tenants.delete_assoc_connections', 'OIDC & SAML Connections (Providers)')}</li>
+                                    <li>{t('tenants.delete_assoc_data', 'All related session and login data')}</li>
                                 </ul>
                             </div>
-                            <p className="font-semibold text-foreground">This action cannot be undone.</p>
+                            <p className="font-semibold text-foreground">{t('common.cannot_undone', 'This action cannot be undone.')}</p>
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel data-testid="cancel-delete-tenant-btn">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel data-testid="cancel-delete-tenant-btn">{t('common.cancel', 'Cancel')}</AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             data-testid="confirm-delete-tenant-btn"
                             className="bg-destructive hover:bg-destructive/90"
                         >
-                            Delete
+                            {t('common.delete', 'Delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

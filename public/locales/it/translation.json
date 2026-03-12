@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "applications": "Applicazioni",
+    "oidc_clients": "Client OIDC",
+    "saml_clients": "Client SAML",
+    "connections": "Connessioni",
+    "oidc_providers": "Provider OIDC",
+    "saml_providers": "Provider SAML",
+    "tenants": "Tenant",
+    "scopes": "Ambiti (Scopes)",
+    "settings": "Impostazioni"
+  },
+  "dashboard": {
+    "title": "Piano di Controllo",
+    "subtitle": "Routing delle identità indipendente dal protocollo a colpo d'occhio",
+    "health": "Salute",
+    "systems_operational": "Tutti i sistemi sono operativi",
+    "auth_traffic": "Traffico Auth per Protocollo",
+    "recent_activity": "Attività Recente",
+    "no_recent_activity": "Nessuna attività recente",
+    "quick_actions": "Azioni Rapide",
+    "create_oidc_client": "Crea Client OIDC",
+    "create_saml_client": "Crea Client SAML (SP)",
+    "add_saml_provider": "Aggiungi Provider SAML (IdP)",
+    "add_oidc_provider": "Aggiungi Provider OIDC"
+  }
+}

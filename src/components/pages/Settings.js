@@ -1,12 +1,6 @@
 import React from "react";
-import {
-  Globe,
-  Palette,
-  ExternalLink,
-  Copy,
-  ShieldCheck,
-  FileCode2
-} from "lucide-react";
+import { useTranslation } from 'react-i18next';
+import { Globe, Palette, ExternalLink, Copy, ShieldCheck, FileCode2 } from "lucide-react";
 import {
   Card,
   CardContent
@@ -17,26 +11,32 @@ import {useTheme} from "@/context/ThemeContext";
 
 const BACKEND_URL = window._env_?.SHYNTR_PUBLIC_BACKEND_URL || "http://localhost:7496";
 
+export function Settings() {
+  const { t } = useTranslation();
+  const { theme, toggleTheme } = useTheme();
+
+  const copyToClipboard = (text) => { navigator.clipboard.writeText(text); };
+
 const SYSTEM_ENDPOINTS = [
   {
-    title: "OIDC Discovery (Well-Known)",
-    description: "OpenID Connect configuration endpoint for the default tenant.",
+      title: t('settings.oidc_discovery', "OIDC Discovery (Well-Known)"),
+      description: t('settings.oidc_desc', "OpenID Connect configuration endpoint for the default tenant."),
     url: `${BACKEND_URL}/.well-known/openid-configuration`,
     icon: Globe,
     color: "text-blue-500",
     bg: "bg-blue-100 dark:bg-blue-900/30",
   },
   {
-    title: "SAML IdP Metadata",
-    description: "Identity Provider metadata XML for Shyntr acting as an IdP.",
+      title: t('settings.saml_idp', "SAML IdP Metadata"),
+      description: t('settings.saml_idp_desc', "Identity Provider metadata XML for Shyntr acting as an IdP."),
     url: `${BACKEND_URL}/saml/idp/metadata`,
     icon: FileCode2,
     color: "text-purple-500",
     bg: "bg-purple-100 dark:bg-purple-900/30",
   },
   {
-    title: "SAML SP Metadata",
-    description: "Service Provider metadata XML for Shyntr acting as an SP.",
+      title: t('settings.saml_sp', "SAML SP Metadata"),
+      description: t('settings.saml_sp_desc', "Service Provider metadata XML for Shyntr acting as an SP."),
     url: `${BACKEND_URL}/saml/sp/metadata`,
     icon: ShieldCheck,
     color: "text-orange-500",
@@ -44,26 +44,16 @@ const SYSTEM_ENDPOINTS = [
   }
 ];
 
-export function Settings() {
-  const { theme, toggleTheme } = useTheme();
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
   return (
       <div className="max-w-4xl mx-auto p-6 space-y-8 animate-in fade-in duration-500">
 
         <div>
-          <h1 className="text-3xl font-bold tracking-tight">System Settings</h1>
-          <p className="text-muted-foreground mt-2">
-            Manage appearance and access global identity metadata endpoints (Default Tenant).
-          </p>
+          <h1 className="text-3xl font-bold tracking-tight">{t('settings.title', 'System Settings')}</h1>
+          <p className="text-muted-foreground mt-2">{t('settings.subtitle', 'Manage appearance and access global identity metadata endpoints (Default Tenant).')}</p>
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider px-1">
-            Appearance
-          </h3>
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider px-1">{t('settings.appearance', 'Appearance')}</h3>
           <Card className="rounded-2xl shadow-sm">
             <CardContent className="p-0">
               <div className="flex items-center justify-between p-4 hover:bg-muted/50 transition-colors">
@@ -72,8 +62,8 @@ export function Settings() {
                     <Palette className="w-5 h-5 text-pink-500" />
                   </div>
                   <div className="flex flex-col">
-                    <span className="font-medium">Theme Preferences</span>
-                    <span className="text-xs text-muted-foreground">Change the dashboard look and feel</span>
+                    <span className="font-medium">{t('settings.theme', 'Theme Preferences')}</span>
+                    <span className="text-xs text-muted-foreground">{t('settings.theme_desc', 'Change the dashboard look and feel')}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
@@ -89,10 +79,7 @@ export function Settings() {
         </div>
 
         <div className="space-y-4">
-          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider px-1">
-            Global Identity Endpoints (Default Tenant)
-          </h3>
-
+          <h3 className="text-sm font-medium text-muted-foreground uppercase tracking-wider px-1">{t('settings.endpoints', 'Global Identity Endpoints (Default Tenant)')}</h3>
           <Card className="rounded-2xl shadow-sm overflow-hidden">
             <CardContent className="p-0">
               {SYSTEM_ENDPOINTS.map((endpoint, idx) => {
@@ -119,22 +106,10 @@ export function Settings() {
                           {endpoint.url}
                         </code>
                         <div className="flex items-center gap-1 border-l pl-2">
-                          <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              onClick={() => copyToClipboard(endpoint.url)}
-                              title="Copy to clipboard"
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => copyToClipboard(endpoint.url)} title={t('common.copy', "Copy")}>
                             <Copy className="w-3.5 h-3.5" />
                           </Button>
-                          <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-7 w-7 text-muted-foreground hover:text-foreground"
-                              onClick={() => window.open(endpoint.url, '_blank')}
-                              title="Open in new tab"
-                          >
+                          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-foreground" onClick={() => window.open(endpoint.url, '_blank')} title={t('common.open_tab', "Open in new tab")}>
                             <ExternalLink className="w-3.5 h-3.5" />
                           </Button>
                         </div>

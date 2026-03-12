@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "applications": "Anwendungen",
+    "oidc_clients": "OIDC-Clients",
+    "saml_clients": "SAML-Clients",
+    "connections": "Verbindungen",
+    "oidc_providers": "OIDC-Anbieter",
+    "saml_providers": "SAML-Anbieter",
+    "tenants": "Mandanten",
+    "scopes": "Geltungsbereiche",
+    "settings": "Einstellungen"
+  },
+  "dashboard": {
+    "title": "Steuerungsebene",
+    "subtitle": "Protokollunabhängiges Identitäts-Routing auf einen Blick",
+    "health": "Systemstatus",
+    "systems_operational": "Alle Systeme betriebsbereit",
+    "auth_traffic": "Auth-Verkehr nach Protokoll",
+    "recent_activity": "Letzte Aktivitäten",
+    "no_recent_activity": "Keine aktuellen Aktivitäten",
+    "quick_actions": "Schnellaktionen",
+    "create_oidc_client": "OIDC-Client erstellen",
+    "create_saml_client": "SAML-Client erstellen (SP)",
+    "add_saml_provider": "SAML-Anbieter hinzufügen (IdP)",
+    "add_oidc_provider": "OIDC-Anbieter hinzufügen"
+  }
+}

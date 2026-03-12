@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
   AppWindow, 
   Link2,
   Building2,
@@ -24,11 +25,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
   BarChart,
-  Bar
+  Bar,
+  Cell
 } from 'recharts';
 import {ActivityTypeBadge} from "@/components/shared/ActivityTypeBadge";
 
@@ -92,6 +91,7 @@ function CustomTooltip({ active, payload, label }) {
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [stats, setStats] = useState({
     total_oidc_clients: 0,
     total_saml_clients: 0,
@@ -102,6 +102,7 @@ export function Dashboard() {
     confidential_clients: 0,
     recent_activity: []
   });
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -148,10 +149,10 @@ export function Dashboard() {
       {/* Header */}
       <div className="space-y-2">
         <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
-          Control Plane
+          {t('dashboard.title')}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Protocol-agnostic identity routing at a glance
+          {t('dashboard.subtitle')}
         </p>
       </div>
 
@@ -159,7 +160,7 @@ export function Dashboard() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           icon={AppWindow}
-          title="Applications"
+          title={t('dashboard.applications')}
           value={totalClients}
           description={`${stats.total_oidc_clients} OIDC, ${stats.total_saml_clients} SAML`}
           color="bg-blue-600"
@@ -167,7 +168,7 @@ export function Dashboard() {
         />
         <StatCard
           icon={Link2}
-          title="Connections"
+          title={t('dashboard.connections')}
           value={totalConnections}
           description={`${stats.total_oidc_connections} OIDC, ${stats.total_saml_connections} SAML`}
           color="bg-violet-600"
@@ -175,17 +176,17 @@ export function Dashboard() {
         />
         <StatCard
           icon={Building2}
-          title="Tenants"
+          title={t('dashboard.tenants')}
           value={stats.total_tenants}
-          description="Isolation zones"
+          description={t('dashboard.isolation_zones')}
           color="bg-emerald-600"
           onClick={() => navigate('/tenants')}
         />
         <StatCard
           icon={Shield}
-          title="Health"
+          title={t('dashboard.health')}
           value="OK"
-          description="All systems operational"
+          description={t('dashboard.systems_operational')}
           color="bg-teal-600"
         />
       </div>
@@ -197,7 +198,7 @@ export function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
               <TrendingUp className="h-5 w-5 text-primary" />
-              Auth Traffic by Protocol
+              {t('dashboard.auth_traffic')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -253,7 +254,7 @@ export function Dashboard() {
         {/* Protocol Distribution */}
         <Card className="bg-card/40 backdrop-blur-sm border-border/40">
           <CardHeader>
-            <CardTitle className="font-heading">Connections</CardTitle>
+            <CardTitle className="font-heading">{t('dashboard.connections')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="h-[200px]">
@@ -263,7 +264,7 @@ export function Dashboard() {
                   <XAxis type="number" stroke="hsl(215, 20%, 65%)" fontSize={12} />
                   <YAxis type="category" dataKey="name" stroke="hsl(215, 20%, 65%)" fontSize={12} width={50} />
                   <Tooltip content={<CustomTooltip />} />
-                  <Bar dataKey="value" name="Count">
+                  <Bar dataKey="value" name={t('common.count', 'Count')}>
                     {connectionDistribution.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.oidc : COLORS.saml} />
                     ))}
@@ -282,7 +283,7 @@ export function Dashboard() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 font-heading">
               <Clock className="h-5 w-5 text-primary" />
-              Recent Activity
+              {t('dashboard.recent_activity')}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -311,7 +312,7 @@ export function Dashboard() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-8">
-                No recent activity
+                {t('dashboard.no_recent_activity')}
               </p>
             )}
           </CardContent>
@@ -320,7 +321,7 @@ export function Dashboard() {
         {/* Quick Actions */}
         <Card className="bg-card/40 backdrop-blur-sm border-border/40">
           <CardHeader>
-            <CardTitle className="font-heading">Quick Actions</CardTitle>
+            <CardTitle className="font-heading">{t('dashboard.quick_actions')}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <Button
@@ -331,7 +332,7 @@ export function Dashboard() {
             >
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-teal-500" />
-                Create OIDC Client
+                {t('dashboard.create_oidc_client')}
               </span>
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -343,7 +344,7 @@ export function Dashboard() {
             >
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-orange-500" />
-                Create SAML Client (SP)
+                {t('dashboard.create_saml_client')}
               </span>
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -355,7 +356,7 @@ export function Dashboard() {
             >
               <span className="flex items-center gap-2">
                 <KeyRound className="h-4 w-4" />
-                Add SAML Provider (IdP)
+                {t('dashboard.add_saml_provider')}
               </span>
               <ArrowRight className="h-4 w-4" />
             </Button>
@@ -367,7 +368,7 @@ export function Dashboard() {
             >
               <span className="flex items-center gap-2">
                 <GlobeLock className="h-4 w-4" />
-                Add OIDC Provider
+                {t('dashboard.add_oidc_provider')}
               </span>
               <ArrowRight className="h-4 w-4" />
             </Button>

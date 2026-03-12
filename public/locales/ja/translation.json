@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "dashboard": "ダッシュボード",
+    "applications": "アプリケーション",
+    "oidc_clients": "OIDC クライアント",
+    "saml_clients": "SAML クライアント",
+    "connections": "接続",
+    "oidc_providers": "OIDC プロバイダー",
+    "saml_providers": "SAML プロバイダー",
+    "tenants": "テナント",
+    "scopes": "スコープ",
+    "settings": "設定"
+  },
+  "dashboard": {
+    "title": "コントロールプレーン",
+    "subtitle": "プロトコルに依存しないアイデンティティルーティングを一目で確認",
+    "health": "状態",
+    "systems_operational": "すべてのシステムは正常に稼働しています",
+    "auth_traffic": "プロトコル別の認証トラフィック",
+    "recent_activity": "最近のアクティビティ",
+    "no_recent_activity": "最近のアクティビティはありません",
+    "quick_actions": "クイックアクション",
+    "create_oidc_client": "OIDCクライアントを作成",
+    "create_saml_client": "SAMLクライアントを作成 (SP)",
+    "add_saml_provider": "SAMLプロバイダーを追加 (IdP)",
+    "add_oidc_provider": "OIDCプロバイダーを追加"
+  }
+}

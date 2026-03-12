@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "dashboard": "Панель управления",
+    "applications": "Приложения",
+    "oidc_clients": "Клиенты OIDC",
+    "saml_clients": "Клиенты SAML",
+    "connections": "Подключения",
+    "oidc_providers": "Провайдеры OIDC",
+    "saml_providers": "Провайдеры SAML",
+    "tenants": "Тенанты",
+    "scopes": "Области (Scopes)",
+    "settings": "Настройки"
+  },
+  "dashboard": {
+    "title": "Плоскость управления",
+    "subtitle": "Независимая от протокола маршрутизация идентификации с первого взгляда",
+    "health": "Состояние",
+    "systems_operational": "Все системы работают нормально",
+    "auth_traffic": "Трафик аутентификации по протоколам",
+    "recent_activity": "Последняя активность",
+    "no_recent_activity": "Нет недавней активности",
+    "quick_actions": "Быстрые действия",
+    "create_oidc_client": "Создать клиент OIDC",
+    "create_saml_client": "Создать клиент SAML (SP)",
+    "add_saml_provider": "Добавить провайдера SAML (IdP)",
+    "add_oidc_provider": "Добавить провайдера OIDC"
+  }
+}

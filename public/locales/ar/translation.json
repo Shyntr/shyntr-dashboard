@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "dashboard": "لوحة القيادة",
+    "applications": "التطبيقات",
+    "oidc_clients": "عملاء OIDC",
+    "saml_clients": "عملاء SAML",
+    "connections": "الاتصالات",
+    "oidc_providers": "مزودي OIDC",
+    "saml_providers": "مزودي SAML",
+    "tenants": "المستأجرين",
+    "scopes": "النطاقات",
+    "settings": "الإعدادات"
+  },
+  "dashboard": {
+    "title": "مستوى التحكم",
+    "subtitle": "توجيه الهوية المستقل عن البروتوكول بلمحة",
+    "health": "الصحة",
+    "systems_operational": "جميع الأنظمة تعمل",
+    "auth_traffic": "حركة المصادقة حسب البروتوكول",
+    "recent_activity": "النشاط الأخير",
+    "no_recent_activity": "لا يوجد نشاط أخير",
+    "quick_actions": "إجراءات سريعة",
+    "create_oidc_client": "إنشاء عميل OIDC",
+    "create_saml_client": "إنشاء عميل SAML (SP)",
+    "add_saml_provider": "إضافة مزود SAML (IdP)",
+    "add_oidc_provider": "إضافة مزود OIDC"
+  }
+}

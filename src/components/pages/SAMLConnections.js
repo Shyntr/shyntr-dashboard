@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, KeyRound, RefreshCw, ClipboardPaste } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -37,8 +38,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
 import { toast } from 'sonner';
 import { EmptyState } from '../shared/EmptyState';
 import { ProtocolBadge } from '../shared/ProtocolBadge';
-import { JsonEditor } from '../shared/JsonEditor';
-import { 
+import {
   getSAMLConnections, 
   createSAMLConnection, 
   updateSAMLConnection, 
@@ -65,6 +65,7 @@ const defaultConnection = {
 };
 
 export function SAMLConnections() {
+  const { t } = useTranslation();
   const [connections, setConnections] = useState([]);
   const [tenants, setTenants] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -206,12 +207,12 @@ export function SAMLConnections() {
         <div className="space-y-2">
           <div className="flex items-center gap-3">
             <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
-              SAML Providers
+              {t('saml_connections.title', 'SAML Providers')}
             </h1>
             <ProtocolBadge protocol="saml" />
           </div>
           <p className="text-sm text-muted-foreground">
-            Enterprise Identity Providers (IdPs) for SAML-based SSO
+            {t('saml_connections.subtitle', 'Enterprise Identity Providers (IdPs) for SAML-based SSO')}
           </p>
         </div>
         <Button 
@@ -220,7 +221,7 @@ export function SAMLConnections() {
           className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
         >
           <Plus className="h-4 w-4 mr-2" />
-          Add SAML Provider
+          {t('saml_connections.add_btn', 'Add SAML Provider')}
         </Button>
       </div>
 
@@ -232,9 +233,9 @@ export function SAMLConnections() {
       ) : connections.length === 0 ? (
         <EmptyState
           icon={KeyRound}
-          title="No SAML providers yet"
-          description="Connect your enterprise Identity Provider (Okta, Azure AD, etc.) to enable SAML-based SSO."
-          actionLabel="Add SAML Provider"
+          title={t('saml_connections.empty_title', 'No SAML providers yet')}
+          description={t('saml_connections.empty_desc', 'Connect your enterprise Identity Provider (Okta, Azure AD, etc.) to enable SAML-based SSO.')}
+          actionLabel={t('saml_connections.add_btn', 'Add SAML Provider')}
           onAction={handleCreate}
           testId="empty-saml-connections"
         />
@@ -244,11 +245,11 @@ export function SAMLConnections() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="text-xs uppercase tracking-wider">Name</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">Settings</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">{t('common.name', 'Name')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">{t('common.tenant', 'Tenant')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">{t('common.settings', 'Settings')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">{t('common.created', 'Created')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider text-right">{t('common.actions', 'Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -288,11 +289,11 @@ export function SAMLConnections() {
                             : 'bg-slate-500/15 text-slate-400 border-slate-500/20'
                           }
                         >
-                          {connection.sign_request ? 'Signed' : 'Unsigned'}
+                          {connection.sign_request ? t('common.signed', 'Signed') : t('common.unsigned', 'Unsigned')}
                         </Badge>
                         {connection.force_authn && (
                           <Badge variant="outline" className="bg-amber-500/15 text-amber-500 border-amber-500/20">
-                            Force AuthN
+                            {t('saml_clients.force_authn', 'Force AuthN')}
                           </Badge>
                         )}
                       </div>
@@ -334,13 +335,13 @@ export function SAMLConnections() {
         <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center gap-2">
-              {isEditing ? 'Edit SAML Provider' : 'Add SAML Provider'}
+              {isEditing ? t('saml_connections.edit_title', 'Edit SAML Provider') : t('saml_connections.add_title', 'Add SAML Provider')}
               <ProtocolBadge protocol="saml" />
             </DialogTitle>
             <DialogDescription>
-              {isEditing 
-                ? 'Update your SAML Identity Provider configuration' 
-                : 'Configure a SAML connection to your enterprise IdP'
+              {isEditing
+                  ? t('saml_connections.edit_desc', 'Update your SAML Identity Provider configuration')
+                  : t('saml_connections.add_desc', 'Configure a SAML connection to your enterprise IdP')
               }
             </DialogDescription>
           </DialogHeader>
@@ -348,15 +349,15 @@ export function SAMLConnections() {
           <form onSubmit={handleSubmit}>
             <Tabs defaultValue="basic" className="w-full">
               <TabsList className="grid w-full grid-cols-4">
-                <TabsTrigger value="basic">Basic</TabsTrigger>
-                <TabsTrigger value="idp">Identity Provider</TabsTrigger>
-                <TabsTrigger value="settings">Settings</TabsTrigger>
-                <TabsTrigger value="mapping">Attribute Mapping</TabsTrigger>
+                <TabsTrigger value="basic">{t('common.basic', 'Basic')}</TabsTrigger>
+                <TabsTrigger value="idp">{t('saml_connections.idp', 'Identity Provider')}</TabsTrigger>
+                <TabsTrigger value="settings">{t('common.settings', 'Settings')}</TabsTrigger>
+                <TabsTrigger value="mapping">{t('common.attribute_mapping', 'Attribute Mapping')}</TabsTrigger>
               </TabsList>
 
               <TabsContent value="basic" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <Label htmlFor="connection-name">Connection Name *</Label>
+                  <Label htmlFor="connection-name">{t('saml_connections.conn_name', 'Connection Name')} *</Label>
                   <Input
                     id="connection-name"
                     value={formData.name}
@@ -366,7 +367,7 @@ export function SAMLConnections() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Tenant *</Label>
+                  <Label>{t('common.tenant', 'Tenant')} *</Label>
                   <Select
                       value={formData.tenant_id}
                       onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
@@ -382,7 +383,7 @@ export function SAMLConnections() {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="metadata-url">IdP Metadata URL</Label>
+                  <Label htmlFor="metadata-url">{t('saml_connections.idp_metadata_url', 'IdP Metadata URL')}</Label>
                   <Input
                     id="metadata-url"
                     value={formData.metadata_url || ''}
@@ -390,20 +391,20 @@ export function SAMLConnections() {
                     placeholder="https://dev-xxxx.okta.com/app/.../sso/saml/metadata"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Easiest method. Provide the URL to auto-configure the connection.
+                    {t('saml_connections.idp_metadata_desc', 'Easiest method. Provide the URL to auto-configure the connection.')}
                   </p>
                 </div>
               </TabsContent>
 
               <TabsContent value="idp" className="space-y-4 mt-4">
                 <div className="space-y-2 pb-2 border-b border-border/40">
-                  <h4 className="text-sm font-medium">Manual Configuration</h4>
-                  <p className="text-xs text-muted-foreground">Fill these if you do not have a Metadata URL or XML.</p>
+                  <h4 className="text-sm font-medium">{t('saml_connections.manual_config', 'Manual Configuration')}</h4>
+                  <p className="text-xs text-muted-foreground">{t('saml_connections.manual_config_desc', 'Fill these if you do not have a Metadata URL or XML.')}</p>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label htmlFor="idp-entity-id">IdP Entity ID</Label>
+                      <Label htmlFor="idp-entity-id">{t('saml_connections.idp_entity_id', 'IdP Entity ID')}</Label>
                         <Input
                             id="idp-entity-id"
                             value={formData.idp_entity_id || ''}
@@ -412,7 +413,7 @@ export function SAMLConnections() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="idp-sso-url">IdP SSO URL</Label>
+                      <Label htmlFor="idp-sso-url">{t('saml_connections.idp_sso_url', 'IdP SSO URL')}</Label>
                         <Input
                             id="idp-sso-url"
                             value={formData.idp_single_sign_on || ''}
@@ -423,7 +424,7 @@ export function SAMLConnections() {
                 </div>
 
                 <div className="space-y-2">
-                    <Label htmlFor="idp-slo-url">IdP SLO URL</Label>
+                  <Label htmlFor="idp-slo-url">{t('saml_connections.idp_slo_url', 'IdP SLO URL')}</Label>
                     <Input
                         id="idp-slo-url"
                         value={formData.idp_slo_url || ''}
@@ -434,7 +435,7 @@ export function SAMLConnections() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                        <Label>IdP Certificate (Signing)</Label>
+                      <Label>{t('saml_connections.idp_cert', 'IdP Certificate (Signing)')}</Label>
                         <Textarea
                             value={formData.idp_certificate || ''}
                             onChange={(e) => setFormData({...formData, idp_certificate: e.target.value})}
@@ -444,7 +445,7 @@ export function SAMLConnections() {
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label>IdP Encryption Certificate</Label>
+                      <Label>{t('saml_connections.idp_enc_cert', 'IdP Encryption Certificate')}</Label>
                         <Textarea
                             value={formData.idp_encryption_certificate || ''}
                             onChange={(e) => setFormData({...formData, idp_encryption_certificate: e.target.value})}
@@ -457,13 +458,13 @@ export function SAMLConnections() {
 
                 <div className="relative flex py-4 items-center">
                     <div className="flex-grow border-t border-border/40"></div>
-                    <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase">OR PASTE XML</span>
+                    <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase">{t('saml_connections.or_paste_xml', 'OR PASTE XML')}</span>
                     <div className="flex-grow border-t border-border/40"></div>
                 </div>
 
                 <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>IDP Metadata XML</Label>
+                    <Label>{t('saml_connections.idp_metadata_xml', 'IDP Metadata XML')}</Label>
                     <Button
                       type="button"
                       variant="outline"
@@ -471,7 +472,7 @@ export function SAMLConnections() {
                       onClick={handlePaste}
                     >
                       <ClipboardPaste className="h-4 w-4 mr-2" />
-                      Paste
+                      {t('common.paste', 'Paste')}
                     </Button>
                   </div>
                   <Textarea
@@ -482,7 +483,7 @@ export function SAMLConnections() {
                     className="font-mono text-sm"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Fallback: Paste the raw SAML metadata XML if you don't have a URL and don't want to use manual fields.
+                    {t('saml_connections.xml_desc', "Fallback: Paste the raw SAML metadata XML if you don't have a URL and don't want to use manual fields.")}
                   </p>
                 </div>
               </TabsContent>
@@ -491,9 +492,9 @@ export function SAMLConnections() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                     <div>
-                      <Label className="text-sm font-medium">Sign Request</Label>
+                      <Label className="text-sm font-medium">{t('saml_connections.sign_request', 'Sign Request')}</Label>
                       <p className="text-xs text-muted-foreground">
-                        Sign the AuthnRequest sent to IdP
+                        {t('saml_connections.sign_request_desc', 'Sign the AuthnRequest sent to IdP')}
                       </p>
                     </div>
                     <Switch
@@ -504,9 +505,9 @@ export function SAMLConnections() {
                   </div>
                   <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                     <div>
-                      <Label className="text-sm font-medium">Force AuthN</Label>
+                      <Label className="text-sm font-medium">{t('saml_clients.force_authn', 'Force AuthN')}</Label>
                       <p className="text-xs text-muted-foreground">
-                        Always require re-authentication
+                        {t('saml_connections.force_authn_desc', 'Always require re-authentication')}
                       </p>
                     </div>
                     <Switch
@@ -521,7 +522,7 @@ export function SAMLConnections() {
               <TabsContent value="mapping" className="space-y-4 mt-4">
                 <div className="space-y-2">
                   <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson}
-                                          subtitle={"Map IdP SAML attributes to OIDC standard claims"} tenantId={formData.tenant_id}/>
+                                          subtitle={t('saml_connections.mapping_desc', 'Map IdP SAML attributes to OIDC standard claims')} tenantId={formData.tenant_id}/>
                 </div>
               </TabsContent>
             </Tabs>
@@ -540,7 +541,7 @@ export function SAMLConnections() {
                 data-testid="save-saml-connection-btn"
                 className="bg-primary hover:bg-primary/90"
               >
-                {isEditing ? 'Update Provider' : 'Add Provider'}
+                {isEditing ? t('common.update', 'Update') : t('common.add', 'Add')}
               </Button>
             </DialogFooter>
           </form>
@@ -551,10 +552,10 @@ export function SAMLConnections() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete SAML Provider</AlertDialogTitle>
+            <AlertDialogTitle>{t('saml_connections.delete_title', 'Delete SAML Provider')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{selectedConnection?.name}</strong>? 
-              Users will no longer be able to sign in using this Identity Provider.
+              {t('common.delete_confirm', 'Are you sure you want to delete')} <strong>{selectedConnection?.name}</strong>?
+              {t('saml_connections.delete_desc', 'Users will no longer be able to sign in using this Identity Provider.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

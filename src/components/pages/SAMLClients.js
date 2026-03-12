@@ -1,5 +1,6 @@
 import {useEffect, useState} from 'react';
 import {FileCode2, Pencil, Plus, RefreshCw, Trash2} from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import {Card, CardContent} from '../ui/card';
 import {Button} from '../ui/button';
 import {Badge} from '../ui/badge';
@@ -45,6 +46,7 @@ const defaultClient = {
 };
 
 function SAMLClients() {
+    const { t } = useTranslation();
     const [clients, setClients] = useState([]);
     const [tenants, setTenants] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -173,12 +175,12 @@ function SAMLClients() {
                 <div className="space-y-2">
                     <div className="flex items-center gap-3">
                         <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
-                            SAML Clients
+                            {t('saml_clients.title', 'SAML Clients')}
                         </h1>
                         <ProtocolBadge protocol="saml"/>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Service Providers (SPs) receiving SAML assertions from Shyntr
+                        {t('saml_clients.subtitle', 'Service Providers (SPs) receiving SAML assertions from Shyntr')}
                     </p>
                 </div>
                 <Button
@@ -187,7 +189,7 @@ function SAMLClients() {
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
                 >
                     <Plus className="h-4 w-4 mr-2"/>
-                    Create SAML Client
+                    {t('saml_clients.create_btn', 'Create SAML Client')}
                 </Button>
             </div>
 
@@ -199,9 +201,9 @@ function SAMLClients() {
             ) : clients.length === 0 ? (
                 <EmptyState
                     icon={FileCode2}
-                    title="No SAML clients yet"
-                    description="Create your first SAML Service Provider to enable enterprise SSO integration."
-                    actionLabel="Create SAML Client"
+                    title={t('saml_clients.empty_title', 'No SAML clients yet')}
+                    description={t('saml_clients.empty_desc', 'Create your first SAML Service Provider to enable enterprise SSO integration.')}
+                    actionLabel={t('saml_clients.create_btn', 'Create SAML Client')}
                     onAction={handleCreate}
                     testId="empty-saml-clients"
                 />
@@ -211,18 +213,13 @@ function SAMLClients() {
                         <Table>
                             <TableHeader>
                                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                                    <TableHead className="text-xs uppercase tracking-wider">Entity ID</TableHead>
-                                    <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
-                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">ACS
-                                        URL</TableHead>
-                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">SLO
-                                        URL</TableHead>
-                                    <TableHead
-                                        className="text-xs uppercase tracking-wider hidden lg:table-cell">Settings</TableHead>
-                                    <TableHead
-                                        className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
-                                    <TableHead
-                                        className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider">{t('common.entity_id', 'Entity ID')}</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider">{t('common.tenant', 'Tenant')}</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">{t('saml_clients.acs_url', 'ACS URL')}</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">{t('saml_clients.slo_url', 'SLO URL')}</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">{t('common.settings', 'Settings')}</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">{t('common.created', 'Created')}</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider text-right">{t('common.actions', 'Actions')}</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -272,13 +269,13 @@ function SAMLClients() {
                                                 {client.sign_response && (
                                                     <Badge variant="outline"
                                                            className="text-xs bg-emerald-500/15 text-emerald-500 border-emerald-500/20">
-                                                        Signed
+                                                        {t('common.signed', 'Signed')}
                                                     </Badge>
                                                 )}
                                                 {client.encrypt_assertion && (
                                                     <Badge variant="outline"
                                                            className="text-xs bg-blue-500/15 text-blue-500 border-blue-500/20">
-                                                        Encrypted
+                                                        {t('common.encrypted', 'Encrypted')}
                                                     </Badge>
                                                 )}
                                             </div>
@@ -321,13 +318,13 @@ function SAMLClients() {
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading flex items-center gap-2">
-                            {isEditing ? 'Edit SAML Client' : 'Create SAML Client'}
+                            {isEditing ? t('saml_clients.edit_title', 'Edit SAML Client') : t('saml_clients.create_title', 'Create SAML Client')}
                             <ProtocolBadge protocol="saml"/>
                         </DialogTitle>
                         <DialogDescription>
                             {isEditing
-                                ? 'Update your SAML Service Provider configuration'
-                                : 'Configure a new SAML Service Provider'
+                                ? t('saml_clients.edit_desc', 'Update your SAML Service Provider configuration')
+                                : t('saml_clients.create_desc', 'Configure a new SAML Service Provider')
                             }
                         </DialogDescription>
                     </DialogHeader>
@@ -335,15 +332,15 @@ function SAMLClients() {
                     <form onSubmit={handleSubmit}>
                         <Tabs defaultValue="basic" className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
-                                <TabsTrigger value="basic">Basic</TabsTrigger>
-                                <TabsTrigger value="security">Security</TabsTrigger>
-                                <TabsTrigger value="mapping">Attribute Mapping</TabsTrigger>
+                                <TabsTrigger value="basic">{t('common.basic', 'Basic')}</TabsTrigger>
+                                <TabsTrigger value="security">{t('common.security', 'Security')}</TabsTrigger>
+                                <TabsTrigger value="mapping">{t('common.attribute_mapping', 'Attribute Mapping')}</TabsTrigger>
                             </TabsList>
 
                             <TabsContent value="basic" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>Tenant *</Label>
+                                        <Label>{t('common.tenant', 'Tenant')} *</Label>
                                         <Select
                                             value={formData.tenant_id}
                                             onValueChange={(value) => setFormData({...formData, tenant_id: value})}
@@ -362,7 +359,7 @@ function SAMLClients() {
                                         </Select>
                                     </div>
                                     <div className="space-y-2">
-                                        <Label htmlFor="name">Display Name</Label>
+                                        <Label htmlFor="name">{t('common.display_name', 'Display Name')}</Label>
                                         <Input
                                             id="name"
                                             value={formData.name || ''}
@@ -373,7 +370,7 @@ function SAMLClients() {
                                     </div>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="metadata-url">SP Metadata URL</Label>
+                                    <Label htmlFor="metadata-url">{t('saml_clients.sp_metadata_url', 'SP Metadata URL')}</Label>
                                     <Input
                                         id="metadata-url"
                                         value={formData.metadata_url || ''}
@@ -381,11 +378,10 @@ function SAMLClients() {
                                         placeholder="https://jira.corp.com/SAML/metadata"
                                         data-testid="saml-metadata-url-input"
                                     />
-                                    <p className="text-xs text-muted-foreground">Provide a Metadata URL to auto-fill SP
-                                        details. If provided, fields below are optional.</p>
+                                    <p className="text-xs text-muted-foreground">{t('saml_clients.sp_metadata_desc', 'Provide a Metadata URL to auto-fill SP details. If provided, fields below are optional.')}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="entity-id">Entity ID {formData.metadata_url ? '' : '*'}</Label>
+                                    <Label htmlFor="entity-id">{t('common.entity_id', 'Entity ID')} {formData.metadata_url ? '' : '*'}</Label>
                                     <Input
                                         id="entity-id"
                                         value={formData.entity_id}
@@ -393,11 +389,10 @@ function SAMLClients() {
                                         placeholder="https://jira.corp.com/shyntr-app"
                                         data-testid="saml-entity-id-input"
                                     />
-                                    <p className="text-xs text-muted-foreground">Unique URI identifying this SP</p>
+                                    <p className="text-xs text-muted-foreground">{t('saml_clients.entity_id_desc', 'Unique URI identifying this SP')}</p>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="acs-url">ACS URL (Assertion Consumer
-                                        Service) {formData.metadata_url ? '' : '*'}</Label>
+                                    <Label htmlFor="acs-url">{t('saml_clients.acs_url', 'ACS URL')} ({t('saml_clients.acs_url_full', 'Assertion Consumer Service')}) {formData.metadata_url ? '' : '*'}</Label>
                                     <Input
                                         id="acs-url"
                                         value={formData.acs_url}
@@ -405,12 +400,11 @@ function SAMLClients() {
                                         placeholder="https://jira.corp.com/SAML/ACS"
                                         data-testid="saml-acs-url-input"
                                     />
-                                    <p className="text-xs text-muted-foreground">Where Shyntr sends the SAML
-                                        assertion</p>
+                                    <p className="text-xs text-muted-foreground">{t('saml_clients.acs_desc', 'Where Shyntr sends the SAML assertion')}</p>
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="slo-url">SLO URL (Single Logout Service)</Label>
+                                    <Label htmlFor="slo-url">{t('saml_clients.slo_url', 'SLO URL')} ({t('saml_clients.slo_url_full', 'Single Logout Service')})</Label>
                                     <Input
                                         id="slo-url"
                                         value={formData.slo_url}
@@ -418,12 +412,12 @@ function SAMLClients() {
                                         placeholder="https://jira.corp.com/SAML/SLO"
                                         data-testid="saml-slo-url-input"
                                     />
-                                    <p className="text-xs text-muted-foreground">Optional: For Single Logout Support</p>
+                                    <p className="text-xs text-muted-foreground">{t('saml_clients.slo_desc', 'Optional: For Single Logout Support')}</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
-                                        <Label>SP Certificate (Signing)</Label>
+                                        <Label>{t('saml_clients.sp_cert', 'SP Certificate (Signing)')}</Label>
                                         <Textarea
                                             value={formData.sp_certificate || ''}
                                             onChange={(e) => setFormData({...formData, sp_certificate: e.target.value})}
@@ -431,12 +425,11 @@ function SAMLClients() {
                                             rows={5}
                                             className="font-mono text-sm"
                                         />
-                                        <p className="text-xs text-muted-foreground">Optional: Base SP Certificate
-                                            (PEM)</p>
+                                        <p className="text-xs text-muted-foreground">{t('saml_clients.sp_cert_desc', 'Optional: Base SP Certificate (PEM)')}</p>
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label>SP Encryption Certificate</Label>
+                                        <Label>{t('saml_clients.sp_enc_cert', 'SP Encryption Certificate')}</Label>
                                         <Textarea
                                             value={formData.sp_encryption_certificate || ''}
                                             onChange={(e) => setFormData({
@@ -447,8 +440,7 @@ function SAMLClients() {
                                             rows={5}
                                             className="font-mono text-sm"
                                         />
-                                        <p className="text-xs text-muted-foreground">Optional: Separate cert for
-                                            encryption</p>
+                                        <p className="text-xs text-muted-foreground">{t('saml_clients.sp_enc_cert_desc', 'Optional: Separate cert for encryption')}</p>
                                     </div>
                                 </div>
                             </TabsContent>
@@ -458,9 +450,9 @@ function SAMLClients() {
                                     <div
                                         className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
-                                            <Label className="text-sm font-medium">Sign Response</Label>
+                                            <Label className="text-sm font-medium">{t('saml_clients.sign_response', 'Sign Response')}</Label>
                                             <p className="text-xs text-muted-foreground">
-                                                Sign the entire SAML response
+                                                {t('saml_clients.sign_response_desc', 'Sign the entire SAML response')}
                                             </p>
                                         </div>
                                         <Switch
@@ -475,9 +467,9 @@ function SAMLClients() {
                                     <div
                                         className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
-                                            <Label className="text-sm font-medium">Sign Assertion</Label>
+                                            <Label className="text-sm font-medium">{t('saml_clients.sign_assertion', 'Sign Assertion')}</Label>
                                             <p className="text-xs text-muted-foreground">
-                                                Sign the SAML assertion
+                                                {t('saml_clients.sign_assertion_desc', 'Sign the SAML assertion')}
                                             </p>
                                         </div>
                                         <Switch
@@ -492,9 +484,9 @@ function SAMLClients() {
                                     <div
                                         className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
-                                            <Label className="text-sm font-medium">Encrypt Assertion</Label>
+                                            <Label className="text-sm font-medium">{t('saml_clients.encrypt_assertion', 'Encrypt Assertion')}</Label>
                                             <p className="text-xs text-muted-foreground">
-                                                Encrypt using SP certificate
+                                                {t('saml_clients.encrypt_assertion_desc', 'Encrypt using SP certificate')}
                                             </p>
                                         </div>
                                         <Switch
@@ -509,9 +501,9 @@ function SAMLClients() {
                                     <div
                                         className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
-                                            <Label className="text-sm font-medium">Force AuthN</Label>
+                                            <Label className="text-sm font-medium">{t('saml_clients.force_authn', 'Force AuthN')}</Label>
                                             <p className="text-xs text-muted-foreground">
-                                                Require re-authentication
+                                                {t('saml_clients.force_authn_desc', 'Require re-authentication')}
                                             </p>
                                         </div>
                                         <Switch
@@ -530,7 +522,7 @@ function SAMLClients() {
                                 <div className="space-y-2">
                                     <AttributeMappingEditor initialRules={formData.attribute_mapping || {}}
                                                             onChange={setAttributeMappingJson}
-                                                            subtitle={"Map SAML assertion attributes to standard claims"}
+                                                            subtitle={t('saml_clients.mapping_desc', 'Map SAML assertion attributes to standard claims')}
                                                             tenantId={formData.tenant_id}/>
                                 </div>
                             </TabsContent>
@@ -550,7 +542,7 @@ function SAMLClients() {
                                 data-testid="save-saml-client-btn"
                                 className="bg-primary hover:bg-primary/90"
                             >
-                                {isEditing ? 'Update Client' : 'Create Client'}
+                                {isEditing ? t('common.update', 'Update') : t('common.create', 'Create')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -561,11 +553,10 @@ function SAMLClients() {
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Delete SAML Client</AlertDialogTitle>
+                        <AlertDialogTitle>{t('saml_clients.delete_title', 'Delete SAML Client')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to
-                            delete <strong>{selectedClient?.name || selectedClient?.entity_id}</strong>?
-                            This action cannot be undone.
+                            {t('common.delete_confirm', 'Are you sure you want to delete')} <strong>{selectedClient?.name || selectedClient?.entity_id}</strong>?
+                            {t('common.cannot_undone', 'This action cannot be undone.')}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
@@ -575,7 +566,7 @@ function SAMLClients() {
                             data-testid="confirm-delete-saml-client-btn"
                             className="bg-destructive hover:bg-destructive/90"
                         >
-                            Delete
+                            {t('common.delete', 'Delete')}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

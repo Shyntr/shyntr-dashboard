@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
+import { useTranslation } from 'react-i18next';
+import {
   LayoutDashboard, 
   AppWindow, 
   Link2,
@@ -17,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from '../ui/sheet';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '../ui/collapsible';
 import { useTheme } from '../../context/ThemeContext';
 import { cn } from '../../lib/utils';
+import { LanguageSwitcher } from '../shared/LanguageSwitcher';
 
 const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
@@ -43,6 +45,8 @@ const navigation = [
 
 function NavItem({ item, mobile, onClose }) {
   const location = useLocation();
+  const { t } = useTranslation();
+
   const [open, setOpen] = useState(
     item.children?.some(child => location.pathname.startsWith(child.href))
   );
@@ -50,6 +54,9 @@ function NavItem({ item, mobile, onClose }) {
   const isActive = item.href === location.pathname;
   const hasChildren = item.children && item.children.length > 0;
   
+  const tKey = item.name.toLowerCase().replace(/\s+/g, '_');
+  const translatedName = t(`nav.${tKey}`, item.name);
+
   if (hasChildren) {
     return (
       <Collapsible open={open} onOpenChange={setOpen}>
@@ -59,11 +66,11 @@ function NavItem({ item, mobile, onClose }) {
               'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200',
               'text-muted-foreground hover:bg-muted/50 hover:text-foreground'
             )}
-            data-testid={`nav-${item.name.toLowerCase()}-toggle`}
+            data-testid={`nav-${tKey}-toggle`}
           >
             <span className="flex items-center gap-3">
               <item.icon className="h-5 w-5" strokeWidth={1.5} />
-              {item.name}
+              {translatedName}
             </span>
             <ChevronDown className={cn(
               'h-4 w-4 transition-transform duration-200',
@@ -74,12 +81,14 @@ function NavItem({ item, mobile, onClose }) {
         <CollapsibleContent className="pl-8 space-y-1 mt-1">
           {item.children.map((child) => {
             const childActive = location.pathname === child.href;
+            const childTKey = child.name.toLowerCase().replace(/\s+/g, '_');
+            const translatedChildName = t(`nav.${childTKey}`, child.name);
             return (
               <Link
                 key={child.href}
                 to={child.href}
                 onClick={mobile ? onClose : undefined}
-                data-testid={`nav-${child.name.toLowerCase().replace(/\s/g, '-')}`}
+                data-testid={`nav-${childTKey.replace(/_/g, '-')}`}
                 className={cn(
                   'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors duration-200',
                   childActive
@@ -91,7 +100,7 @@ function NavItem({ item, mobile, onClose }) {
                   'w-2 h-2 rounded-full',
                   child.protocol === 'oidc' ? 'bg-teal-500' : 'bg-orange-500'
                 )} />
-                {child.name}
+                {translatedChildName}
               </Link>
             );
           })}
@@ -103,7 +112,7 @@ function NavItem({ item, mobile, onClose }) {
   return (
     <Link
       to={item.href}
-      data-testid={`nav-${item.name.toLowerCase()}`}
+      data-testid={`nav-${tKey}`}
       onClick={mobile ? onClose : undefined}
       className={cn(
         'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200',
@@ -113,7 +122,7 @@ function NavItem({ item, mobile, onClose }) {
       )}
     >
       <item.icon className="h-5 w-5" strokeWidth={1.5} />
-      {item.name}
+      {translatedName}
     </Link>
   );
 }
@@ -155,10 +164,9 @@ function Sidebar({ mobile = false, onClose }) {
 export function Layout({ children }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  
+
   return (
     <div className="relative min-h-screen bg-background">
-      {/* Radial gradient background */}
       <div className="fixed inset-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-900/10 via-background to-background pointer-events-none" />
       
       {/* Desktop Sidebar */}
@@ -192,7 +200,9 @@ export function Layout({ children }) {
         
         <div className="flex-1" />
         
-        <Button 
+        <LanguageSwitcher />
+
+        <Button
           variant="ghost" 
           size="icon" 
           onClick={toggleTheme}
@@ -204,7 +214,9 @@ export function Layout({ children }) {
       
       {/* Desktop Header */}
       <div className="hidden lg:fixed lg:top-0 lg:right-0 lg:left-64 lg:z-40 lg:flex lg:h-16 lg:items-center lg:justify-end lg:gap-4 lg:border-b lg:border-border/40 lg:bg-background/80 lg:backdrop-blur-xl lg:px-6">
-        <Button 
+        <LanguageSwitcher />
+
+        <Button
           variant="ghost" 
           size="icon" 
           onClick={toggleTheme}

@@ -1,0 +1,28 @@
+{
+  "nav": {
+    "dashboard": "仪表板",
+    "applications": "应用程序",
+    "oidc_clients": "OIDC 客户端",
+    "saml_clients": "SAML 客户端",
+    "connections": "连接",
+    "oidc_providers": "OIDC 提供商",
+    "saml_providers": "SAML 提供商",
+    "tenants": "租户",
+    "scopes": "作用域",
+    "settings": "设置"
+  },
+  "dashboard": {
+    "title": "控制平面",
+    "subtitle": "与协议无关的身份路由一览",
+    "health": "健康状态",
+    "systems_operational": "所有系统运行正常",
+    "auth_traffic": "按协议分类的认证流量",
+    "recent_activity": "最近活动",
+    "no_recent_activity": "无最近活动",
+    "quick_actions": "快速操作",
+    "create_oidc_client": "创建 OIDC 客户端",
+    "create_saml_client": "创建 SAML 客户端 (SP)",
+    "add_saml_provider": "添加 SAML 提供商 (IdP)",
+    "add_oidc_provider": "添加 OIDC 提供商"
+  }
+}

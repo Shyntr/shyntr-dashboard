@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Plus, Pencil, Trash2, GlobeLock, RefreshCw, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -66,6 +67,7 @@ const defaultConnection = {
 };
 
 export function OIDCConnections() {
+  const { t } = useTranslation();
   const [connections, setConnections] = useState([]);
   const [attributeMappingJson, setAttributeMappingJson] = useState({});
   const [tenants, setTenants] = useState([]);
@@ -87,7 +89,7 @@ export function OIDCConnections() {
       const response = await getOIDCConnections();
       setConnections(response.data);
     } catch (error) {
-      toast.error(error.message || 'Failed to load OIDC connections');
+      toast.error(error.message || t('common.error_load', 'Failed to load'));
     } finally {
       setLoading(false);
     }
@@ -129,10 +131,10 @@ export function OIDCConnections() {
   const handleDelete = async () => {
     try {
       await deleteOIDCConnection(selectedConnection.id, selectedConnection.tenant_id);
-      toast.success('OIDC connection deleted successfully');
+      toast.success(t('common.deleted_success', 'Deleted successfully'));
       fetchConnections();
     } catch (error) {
-      toast.error(error.message || 'Failed to delete connection');
+      toast.error(error.message || t('common.error_delete', 'Failed to delete'));
     } finally {
       setDeleteDialogOpen(false);
       setSelectedConnection(null);
@@ -141,27 +143,14 @@ export function OIDCConnections() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    if (!formData.name.trim()) {
-      toast.error('Provider name is required');
-      return;
-    }
-    if (!formData.issuer_url.trim()) {
-      toast.error('Issuer URL is required');
-      return;
-    }
-    if (!formData.client_id.trim()) {
-      toast.error('Client ID is required');
-      return;
-    }
+    if (!formData.name.trim()) { toast.error(t('oidc_connections.error_name', 'Provider name is required')); return; }
+    if (!formData.issuer_url.trim()) { toast.error(t('oidc_connections.error_issuer', 'Issuer URL is required')); return; }
+    if (!formData.client_id.trim()) { toast.error(t('oidc_clients.error_client_id', 'Client ID is required')); return; }
 
     let attributeMapping = {};
     try {
       attributeMapping = Object.assign(attributeMappingJson, {});
-    } catch (err) {
-      toast.error('Invalid JSON in attribute mapping');
-      return;
-    }
+    } catch (err) { toast.error(t('common.error_json', 'Invalid JSON mapping')); return; }
 
     const submitData = {
       ...formData,
@@ -171,15 +160,15 @@ export function OIDCConnections() {
     try {
       if (isEditing) {
         await updateOIDCConnection(formData.id, submitData);
-        toast.success('OIDC connection updated successfully');
+        toast.success(t('common.updated_success', 'Updated successfully'));
       } else {
         await createOIDCConnection(submitData);
-        toast.success('OIDC connection created successfully');
+        toast.success(t('common.created_success', 'Created successfully'));
       }
       setDialogOpen(false);
       fetchConnections();
     } catch (error) {
-      toast.error(error.message || 'Failed to save connection');
+      toast.error(error.message || t('common.error_save', 'Failed to save'));
     }
   };
 
@@ -194,40 +183,27 @@ export function OIDCConnections() {
 
   return (
     <div className="p-6 lg:p-8 space-y-8 animate-fade-in" data-testid="oidc-connections-page">
-      {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="space-y-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
-              OIDC Providers
-            </h1>
+            <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">{t('oidc_connections.title', 'OIDC Providers')}</h1>
             <ProtocolBadge protocol="oidc" />
           </div>
-          <p className="text-sm text-muted-foreground">
-            External OpenID Connect providers for social & modern SSO
-          </p>
+          <p className="text-sm text-muted-foreground">{t('oidc_connections.subtitle', 'External OpenID Connect providers for social & modern SSO')}</p>
         </div>
-        <Button 
-          onClick={handleCreate}
-          data-testid="create-oidc-connection-btn"
-          className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-        >
-          <Plus className="h-4 w-4 mr-2" />
-          Add OIDC Provider
+        <Button onClick={handleCreate} data-testid="create-oidc-connection-btn" className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20">
+          <Plus className="h-4 w-4 mr-2" />{t('oidc_connections.add_btn', 'Add OIDC Provider')}
         </Button>
       </div>
 
-      {/* Content */}
       {loading ? (
-        <div className="flex items-center justify-center py-16">
-          <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
-        </div>
+        <div className="flex items-center justify-center py-16"><RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" /></div>
       ) : connections.length === 0 ? (
         <EmptyState
           icon={GlobeLock}
-          title="No OIDC providers connected"
-          description="Connect external identity providers like Google, Microsoft, or Auth0 to enable social login."
-          actionLabel="Add OIDC Provider"
+          title={t('oidc_connections.empty_title', 'No OIDC providers connected')}
+          description={t('oidc_connections.empty_desc', 'Connect external identity providers like Google, Microsoft, or Auth0 to enable social login.')}
+          actionLabel={t('oidc_connections.add_btn', 'Add OIDC Provider')}
           onAction={handleCreate}
           testId="empty-oidc-connections"
         />
@@ -237,12 +213,12 @@ export function OIDCConnections() {
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="text-xs uppercase tracking-wider">Provider</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">Issuer URL</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Scopes</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
-                  <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">{t('common.provider', 'Provider')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider">{t('common.tenant', 'Tenant')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">{t('common.issuer_url', 'Issuer URL')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">{t('common.scopes', 'Scopes')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">{t('common.created', 'Created')}</TableHead>
+                  <TableHead className="text-xs uppercase tracking-wider text-right">{t('common.actions', 'Actions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -332,193 +308,98 @@ export function OIDCConnections() {
         </Card>
       )}
 
-      {/* Create/Edit Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center gap-2">
-              {isEditing ? 'Edit OIDC Provider' : 'Add OIDC Provider'}
+              {isEditing ? t('oidc_connections.edit_title', 'Edit OIDC Provider') : t('oidc_connections.add_title', 'Add OIDC Provider')}
               <ProtocolBadge protocol="oidc" />
             </DialogTitle>
             <DialogDescription>
-              {isEditing 
-                ? 'Update your OIDC provider configuration' 
-                : 'Connect an external identity provider using OpenID Connect'
-              }
+              {isEditing ? t('oidc_connections.edit_desc', 'Update your OIDC provider configuration') : t('oidc_connections.add_desc', 'Connect an external identity provider using OpenID Connect')}
             </DialogDescription>
           </DialogHeader>
           
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="provider-name">Provider Name *</Label>
-              <Input
-                id="provider-name"
-                value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                placeholder="Google Workspace"
-                data-testid="oidc-connection-name-input"
-              />
+              <Label htmlFor="provider-name">{t('oidc_connections.provider_name', 'Provider Name')} *</Label>
+              <Input id="provider-name" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Google Workspace" />
             </div>
             <div className="space-y-2">
-              <Label>Tenant *</Label>
-              <Select
-                  value={formData.tenant_id}
-                  onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
-                  // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select a tenant" />
-                </SelectTrigger>
+              <Label>{t('common.tenant', 'Tenant')} *</Label>
+              <Select value={formData.tenant_id} onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}>
+                <SelectTrigger><SelectValue placeholder={t('common.select_tenant', 'Select a tenant')} /></SelectTrigger>
                 <SelectContent>
-                  {tenants.map((tenant) => (
-                      <SelectItem key={tenant.id} value={tenant.id}>
-                        {tenant.display_name || tenant.name}
-                      </SelectItem>
-                  ))}
+                  {tenants.map((tenant) => (<SelectItem key={tenant.id} value={tenant.id}>{tenant.display_name || tenant.name}</SelectItem>))}
                 </SelectContent>
               </Select>
             </div>
-
             <div className="space-y-2">
-              <Label htmlFor="issuer-url">Issuer URL *</Label>
-              <Input
-                id="issuer-url"
-                value={formData.issuer_url}
-                onChange={(e) => setFormData({ ...formData, issuer_url: e.target.value })}
-                placeholder="https://accounts.google.com"
-                data-testid="oidc-issuer-input"
-              />
-              <p className="text-xs text-muted-foreground">
-                Used for OIDC Auto-Discovery (/.well-known/openid-configuration)
-              </p>
+              <Label htmlFor="issuer-url">{t('common.issuer_url', 'Issuer URL')} *</Label>
+              <Input id="issuer-url" value={formData.issuer_url} onChange={(e) => setFormData({ ...formData, issuer_url: e.target.value })} placeholder="https://accounts.google.com" />
+              <p className="text-xs text-muted-foreground">{t('oidc_connections.issuer_desc', 'Used for OIDC Auto-Discovery')}</p>
             </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="client-id">Client ID *</Label>
-                <Input
-                  id="client-id"
-                  value={formData.client_id}
-                  onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
-                  placeholder="your-client-id.apps.googleusercontent.com"
-                  data-testid="oidc-connection-client-id-input"
-                />
+                <Label htmlFor="client-id">{t('common.client_id', 'Client ID')} *</Label>
+                <Input id="client-id" value={formData.client_id} onChange={(e) => setFormData({ ...formData, client_id: e.target.value })} placeholder="your-client-id" />
               </div>
               <div className="space-y-2">
-                <Label>Client Secret</Label>
-                <SecretInput
-                  value={formData.client_secret}
-                  onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
-                  placeholder="Enter client secret"
-                  testId="oidc-connection-client-secret-input"
-                />
+                <Label>{t('common.client_secret', 'Client Secret')}</Label>
+                <SecretInput value={formData.client_secret} onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })} placeholder={t('common.client_secret', 'Client Secret')} />
               </div>
             </div>
-
             <div className="space-y-2">
-              <Label>Scopes (comma-separated)</Label>
-              <Input
-                value={formData.scopes?.join(', ') || ''}
-                onChange={(e) => setFormData({ 
-                  ...formData, 
-                  scopes: e.target.value.split(',').map(s => s.trim()).filter(Boolean) 
-                })}
-                placeholder="openid, email, profile"
-                data-testid="oidc-connection-scopes-input"
-              />
+              <Label>{t('common.scopes_csv', 'Scopes (comma-separated)')}</Label>
+              <Input value={formData.scopes?.join(', ') || ''} onChange={(e) => setFormData({ ...formData, scopes: e.target.value.split(',').map(s => s.trim()).filter(Boolean) })} placeholder="openid, email, profile" />
             </div>
 
-            {/* Advanced Endpoint Overrides */}
             <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
               <CollapsibleTrigger asChild>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  className="w-full justify-between"
-                  data-testid="advanced-toggle"
-                >
-                  <span>Advanced Settings</span>
+                <Button type="button" variant="ghost" className="w-full justify-between">
+                  <span>{t('common.advanced_settings', 'Advanced Settings')}</span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="space-y-4 pt-4">
                 <div className="space-y-2">
-                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson}
-                                          subtitle={"Map external OIDC claims to standard internal claims"} tenantId={formData.tenant_id}/>
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={t('oidc_connections.mapping_desc', 'Map external OIDC claims to standard internal claims')} tenantId={formData.tenant_id}/>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Override auto-discovered endpoints if needed
-                </p>
+                <p className="text-xs text-muted-foreground">{t('oidc_connections.override_endpoints', 'Override auto-discovered endpoints if needed')}</p>
                 <div className="space-y-2">
-                  <Label>Authorization Endpoint</Label>
-                  <Input
-                    value={formData.authorization_endpoint || ''}
-                    onChange={(e) => setFormData({ ...formData, authorization_endpoint: e.target.value })}
-                    placeholder="https://accounts.google.com/o/oauth2/v2/auth"
-                    data-testid="oidc-auth-endpoint-input"
-                  />
+                  <Label>{t('oidc_connections.auth_endpoint', 'Authorization Endpoint')}</Label>
+                  <Input value={formData.authorization_endpoint || ''} onChange={(e) => setFormData({ ...formData, authorization_endpoint: e.target.value })} placeholder="https://accounts.google.com/o/oauth2/v2/auth" />
                 </div>
                 <div className="space-y-2">
-                  <Label>Token Endpoint</Label>
-                  <Input
-                    value={formData.token_endpoint || ''}
-                    onChange={(e) => setFormData({ ...formData, token_endpoint: e.target.value })}
-                    placeholder="https://oauth2.googleapis.com/token"
-                    data-testid="oidc-token-endpoint-input"
-                  />
+                  <Label>{t('oidc_connections.token_endpoint', 'Token Endpoint')}</Label>
+                  <Input value={formData.token_endpoint || ''} onChange={(e) => setFormData({ ...formData, token_endpoint: e.target.value })} placeholder="https://oauth2.googleapis.com/token" />
                 </div>
                 <div className="space-y-2">
-                  <Label>UserInfo Endpoint</Label>
-                  <Input
-                    value={formData.userinfo_endpoint || ''}
-                    onChange={(e) => setFormData({ ...formData, userinfo_endpoint: e.target.value })}
-                    placeholder="https://openidconnect.googleapis.com/v1/userinfo"
-                    data-testid="oidc-userinfo-endpoint-input"
-                  />
+                  <Label>{t('oidc_connections.userinfo_endpoint', 'UserInfo Endpoint')}</Label>
+                  <Input value={formData.userinfo_endpoint || ''} onChange={(e) => setFormData({ ...formData, userinfo_endpoint: e.target.value })} placeholder="https://openidconnect.googleapis.com/v1/userinfo" />
                 </div>
               </CollapsibleContent>
             </Collapsible>
 
             <DialogFooter>
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setDialogOpen(false)}
-                data-testid="cancel-oidc-connection-btn"
-              >
-                Cancel
-              </Button>
-              <Button 
-                type="submit"
-                data-testid="save-oidc-connection-btn"
-                className="bg-primary hover:bg-primary/90"
-              >
-                {isEditing ? 'Update Provider' : 'Add Provider'}
-              </Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>{t('common.cancel', 'Cancel')}</Button>
+              <Button type="submit" className="bg-primary hover:bg-primary/90">{isEditing ? t('common.update', 'Update') : t('common.add', 'Add')}</Button>
             </DialogFooter>
           </form>
         </DialogContent>
       </Dialog>
 
-      {/* Delete Confirmation Dialog */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
-            <AlertDialogTitle>Delete OIDC Provider</AlertDialogTitle>
+            <AlertDialogTitle>{t('oidc_connections.delete_title', 'Delete OIDC Provider')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Are you sure you want to delete <strong>{selectedConnection?.name}</strong>? 
-              Users will no longer be able to sign in using this provider.
+              {t('common.delete_confirm', 'Are you sure you want to delete')} <strong>{selectedConnection?.name}</strong>? {t('oidc_connections.delete_desc', 'Users will no longer be able to sign in using this provider.')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="cancel-delete-oidc-connection-btn">Cancel</AlertDialogCancel>
-            <AlertDialogAction 
-              onClick={handleDelete}
-              data-testid="confirm-delete-oidc-connection-btn"
-              className="bg-destructive hover:bg-destructive/90"
-            >
-              Delete
-            </AlertDialogAction>
+            <AlertDialogCancel>{t('common.cancel', 'Cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">{t('common.delete', 'Delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
