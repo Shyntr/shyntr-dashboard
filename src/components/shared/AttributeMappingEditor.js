@@ -1,27 +1,30 @@
-import React, { useState } from 'react';
-import { Plus, Trash2, Pencil, X, Check, ArrowRight } from 'lucide-react';
-import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
-import { Badge } from '../ui/badge';
+import React, {useState, useEffect} from 'react';
+import {Plus, Trash2, Pencil, X, Check} from 'lucide-react';
+import {Button} from '../ui/button';
+import {Input} from '../ui/input';
+import {Label} from '../ui/label';
+import {Badge} from '../ui/badge';
 import {
-    Table,
-    TableBody,
-    TableCell,
-    TableHead,
-    TableHeader,
-    TableRow,
+    Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../ui/table';
 import {
-    Select,
-    SelectContent,
-    SelectItem,
-    SelectTrigger,
-    SelectValue,
+    Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../ui/select';
+import { getScopes } from '../../lib/api';
 
-export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle = ""  }) {
-    // Convert incoming Object to Array for the Table
+const STANDARD_CLAIMS = [
+    { value: 'sub', label: 'Subject (User ID)' },
+    { value: 'email', label: 'Email Address' },
+    { value: 'name', label: 'Full Name' },
+    { value: 'given_name', label: 'First Name' },
+    { value: 'family_name', label: 'Last Name' },
+    { value: 'preferred_username', label: 'Username' },
+    { value: 'roles', label: 'User Roles (Array)' },
+    { value: 'department', label: 'Department' },
+    { value: 'groups', label: 'Groups (Array)' }
+];
+
+export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = "", tenantId = "default"}) {
     const [rules, setRules] = useState(() => {
         return Object.entries(initialRules || {}).map(([key, val]) => ({
             target: key,
@@ -29,27 +32,32 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
             type: val.type || 'string',
             fallback: val.fallback || '',
             value: val.value || '',
+            targetScopes: val.target_scopes ? val.target_scopes.join(', ') : '',
         }));
     });
 
-    // State to manage which rule is being edited.
-    // null = viewing table, -1 = adding new, 0+ = editing existing index
     const [editingIndex, setEditingIndex] = useState(null);
-
-    // Temporary state for the form inputs
     const [draftRule, setDraftRule] = useState({
-        target: '', source: '', type: 'string', fallback: '', value: ''
+        target: '', source: '', type: 'string', fallback: '', value: '', targetScopes: ''
     });
 
-    // --- Handlers for List View ---
+    const [availableScopes, setAvailableScopes] = useState([]);
+
+    useEffect(() => {
+        if (tenantId) {
+            getScopes(tenantId)
+                .then(res => setAvailableScopes(res.data || []))
+                .catch(err => console.error("Failed to fetch scopes:", err));
+        }
+    }, [tenantId]);
 
     const handleAddNew = () => {
-        setDraftRule({ target: '', source: '', type: 'string', fallback: '', value: '' });
+        setDraftRule({target: '', source: '', type: 'string', fallback: '', value: '', targetScopes: ''});
         setEditingIndex(-1);
     };
 
     const handleEdit = (index) => {
-        setDraftRule({ ...rules[index] });
+        setDraftRule({...rules[index]});
         setEditingIndex(index);
     };
 
@@ -59,31 +67,25 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
         emitChange(newRules);
     };
 
-    // --- Handlers for Form View ---
-
     const saveDraft = () => {
-        if (!draftRule.target || draftRule.target.trim() === '') {
-            // In a real app, you might want to show a toast error here
-            return;
-        }
+        if (!draftRule.target || draftRule.target.trim() === '') return;
 
         let newRules = [...rules];
         if (editingIndex === -1) {
-            newRules.push(draftRule); // Add new
+            newRules.push(draftRule);
         } else {
-            newRules[editingIndex] = draftRule; // Update existing
+            newRules[editingIndex] = draftRule;
         }
 
         setRules(newRules);
         emitChange(newRules);
-        setEditingIndex(null); // Close form, go back to table
+        setEditingIndex(null);
     };
 
     const cancelEdit = () => {
         setEditingIndex(null);
     };
 
-    // Convert the UI Array back to the JSON Map object expected by the Backend
     const emitChange = (currentRules) => {
         const mapObj = {};
         currentRules.forEach((r) => {
@@ -93,30 +95,45 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                     type: r.type || 'string',
                     fallback: r.fallback || '',
                     value: r.value || '',
+                    target_scopes: r.targetScopes ? r.targetScopes.split(',').map(s => s.trim()).filter(Boolean) : [],
                 };
             }
         });
         onChange(mapObj);
     };
 
+    const handleScopeToggle = (scopeName) => {
+        const currentScopes = draftRule.targetScopes.split(',').map(s => s.trim()).filter(Boolean);
+        let newScopes = [...currentScopes];
+
+        if (newScopes.includes(scopeName)) {
+            newScopes = newScopes.filter(s => s !== scopeName);
+        } else {
+            newScopes.push(scopeName);
+        }
+
+        setDraftRule({...draftRule, targetScopes: newScopes.join(', ')});
+    };
+
     return (
         <div className="space-y-4">
-            {/* Header */}
             <div className="flex items-center justify-between">
                 <div>
                     <Label>Attribute Mapping (JSON)</Label>
-                    <p className="text-xs text-muted-foreground mb-2">
-                        {subtitle || ""}
+                    <p className="text-xs text-muted-foreground mb-1">
+                        {subtitle || "Map external identity provider attributes to standard internal claims."}
+                    </p>
+                    <p className="text-[10px] text-primary/80 italic">
+                        * Mapped target fields will be injected directly into the user's tokens.
                     </p>
                 </div>
                 {editingIndex === null && (
                     <Button onClick={handleAddNew} type="button" variant="outline" size="sm" className="h-8">
-                        <Plus className="w-3.5 h-3.5 mr-1" /> Add Rule
+                        <Plus className="w-3.5 h-3.5 mr-1"/> Add Rule
                     </Button>
                 )}
             </div>
 
-            {/* Editor Form (Visible only when adding or editing) */}
             {editingIndex !== null && (
                 <div className="bg-muted/30 border border-border rounded-lg p-4 space-y-4 animate-in fade-in slide-in-from-top-2">
                     <div className="flex items-center justify-between mb-2">
@@ -124,7 +141,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                             {editingIndex === -1 ? 'Add New Rule' : 'Edit Rule'}
                         </h4>
                         <Button variant="ghost" size="icon" className="h-6 w-6" onClick={cancelEdit}>
-                            <X className="w-4 h-4 text-muted-foreground" />
+                            <X className="w-4 h-4 text-muted-foreground"/>
                         </Button>
                     </div>
 
@@ -136,8 +153,16 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 placeholder="e.g. email"
                                 className="h-8 font-mono text-xs"
                                 value={draftRule.target}
-                                onChange={(e) => setDraftRule({ ...draftRule, target: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, target: e.target.value})}
+                                list="standard-claims"
                             />
+                            <datalist id="standard-claims">
+                                {STANDARD_CLAIMS.map(claim => (
+                                    <option key={claim.value} value={claim.value}>
+                                        {claim.label}
+                                    </option>
+                                ))}
+                            </datalist>
                         </div>
 
                         <div className="space-y-1.5">
@@ -148,7 +173,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 className="h-8 font-mono text-xs"
                                 value={draftRule.source}
                                 disabled={!!draftRule.value}
-                                onChange={(e) => setDraftRule({ ...draftRule, source: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, source: e.target.value})}
                             />
                         </div>
 
@@ -156,10 +181,10 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                             <Label className="text-xs text-muted-foreground">Data Type</Label>
                             <Select
                                 value={draftRule.type}
-                                onValueChange={(val) => setDraftRule({ ...draftRule, type: val })}
+                                onValueChange={(val) => setDraftRule({...draftRule, type: val})}
                             >
                                 <SelectTrigger className="h-8 text-xs">
-                                    <SelectValue placeholder="Type" />
+                                    <SelectValue placeholder="Type"/>
                                 </SelectTrigger>
                                 <SelectContent>
                                     <SelectItem value="string">String</SelectItem>
@@ -180,7 +205,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 className="h-8 font-mono text-xs"
                                 value={draftRule.fallback}
                                 disabled={!!draftRule.value}
-                                onChange={(e) => setDraftRule({ ...draftRule, fallback: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, fallback: e.target.value})}
                             />
                         </div>
                         <div className="space-y-1.5">
@@ -190,8 +215,43 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 placeholder="e.g. tr_123"
                                 className="h-8 font-mono text-xs border-primary/30"
                                 value={draftRule.value}
-                                onChange={(e) => setDraftRule({ ...draftRule, value: e.target.value })}
+                                onChange={(e) => setDraftRule({...draftRule, value: e.target.value})}
                             />
+                        </div>
+
+                        <div className="space-y-1.5 md:col-span-2 pt-2 border-t border-border/40 mt-1">
+                            <Label className="text-xs text-emerald-500/80">Target Scopes (Auto-Bind)</Label>
+                            <Input
+                                type="text"
+                                placeholder="e.g. hr_data, profile"
+                                className="h-8 font-mono text-xs border-emerald-500/30 focus-visible:ring-emerald-500/50"
+                                value={draftRule.targetScopes}
+                                onChange={(e) => setDraftRule({...draftRule, targetScopes: e.target.value})}
+                            />
+                            {availableScopes.length > 0 ? (
+                                <div className="flex flex-wrap gap-1.5 pt-1">
+                                    {availableScopes.map(scope => {
+                                        const currentScopes = draftRule.targetScopes.split(',').map(s => s.trim()).filter(Boolean);
+                                        const isSelected = currentScopes.includes(scope.name);
+                                        return (
+                                            <Badge
+                                                key={scope.id}
+                                                variant={isSelected ? "default" : "outline"}
+                                                className={`text-[10px] cursor-pointer transition-colors ${
+                                                    isSelected 
+                                                        ? 'bg-emerald-500 hover:bg-emerald-600 border-emerald-500 text-white' 
+                                                        : 'border-emerald-500/30 text-emerald-600/80 hover:bg-emerald-500/10'
+                                                }`}
+                                                onClick={() => handleScopeToggle(scope.name)}
+                                            >
+                                                {scope.name}
+                                            </Badge>
+                                        )
+                                    })}
+                                </div>
+                            ) : (
+                                <p className="text-[10px] text-muted-foreground italic">No scopes available for this tenant.</p>
+                            )}
                         </div>
                     </div>
 
@@ -200,13 +260,12 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                             Cancel
                         </Button>
                         <Button type="button" size="sm" onClick={saveDraft} disabled={!draftRule.target}>
-                            <Check className="w-3.5 h-3.5 mr-1" /> Save Rule
+                            <Check className="w-3.5 h-3.5 mr-1"/> Save Rule
                         </Button>
                     </div>
                 </div>
             )}
 
-            {/* Table View (Always visible, but empty state shows if no rules) */}
             {rules.length > 0 ? (
                 <div className="border rounded-md overflow-hidden bg-card">
                     <Table>
@@ -215,7 +274,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                 <TableHead className="text-xs h-8">Target</TableHead>
                                 <TableHead className="text-xs h-8">Source</TableHead>
                                 <TableHead className="text-xs h-8">Type</TableHead>
-                                <TableHead className="text-xs h-8 hidden sm:table-cell">Advanced</TableHead>
+                                <TableHead className="text-xs h-8 hidden sm:table-cell">Advanced / Bindings</TableHead>
                                 <TableHead className="text-xs h-8 text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
@@ -239,13 +298,18 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                         <div className="flex flex-col gap-1">
                                             {rule.fallback && (
                                                 <span className="text-[10px] text-muted-foreground flex items-center">
-                          Fallback: <code className="ml-1">{rule.fallback}</code>
-                        </span>
+                                                    Fallback: <code className="ml-1">{rule.fallback}</code>
+                                                </span>
                                             )}
                                             {rule.value && (
                                                 <span className="text-[10px] text-primary flex items-center">
-                          Value: <code className="ml-1">{rule.value}</code>
-                        </span>
+                                                    Value: <code className="ml-1">{rule.value}</code>
+                                                </span>
+                                            )}
+                                            {rule.targetScopes && (
+                                                <span className="text-[10px] text-emerald-500 flex items-center">
+                                                    Scopes: <code className="ml-1">{rule.targetScopes}</code>
+                                                </span>
                                             )}
                                         </div>
                                     </TableCell>
@@ -259,7 +323,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                                 onClick={() => handleEdit(idx)}
                                                 disabled={editingIndex !== null}
                                             >
-                                                <Pencil className="h-3.5 w-3.5" />
+                                                <Pencil className="h-3.5 w-3.5"/>
                                             </Button>
                                             <Button
                                                 type="button"
@@ -269,7 +333,7 @@ export function AttributeMappingEditor({ initialRules = {}, onChange, subtitle =
                                                 onClick={() => handleDelete(idx)}
                                                 disabled={editingIndex !== null}
                                             >
-                                                <Trash2 className="h-3.5 w-3.5" />
+                                                <Trash2 className="h-3.5 w-3.5"/>
                                             </Button>
                                         </div>
                                     </TableCell>

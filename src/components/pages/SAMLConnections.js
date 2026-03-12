@@ -52,6 +52,12 @@ import {getProviderIcon} from "@/lib/utils";
 const defaultConnection = {
   name: '',
   tenant_id: 'default',
+  metadata_url: '',
+  idp_entity_id: '',
+  idp_single_sign_on: '',
+  idp_slo_url: '',
+  idp_certificate: '',
+  idp_encryption_certificate: '',
   idp_metadata_xml: '',
   sign_request: true,
   force_authn: false,
@@ -118,7 +124,7 @@ export function SAMLConnections() {
 
   const handleDelete = async () => {
     try {
-      await deleteSAMLConnection(selectedConnection.id);
+      await deleteSAMLConnection(selectedConnection.id, selectedConnection.tenant_id);
       toast.success('SAML connection deleted successfully');
       fetchConnections();
     } catch (error) {
@@ -146,8 +152,13 @@ export function SAMLConnections() {
       toast.error('Connection name is required');
       return;
     }
-    if (!formData.idp_metadata_xml.trim()) {
-      toast.error('IDP Metadata XML is required');
+
+    const hasMetadataUrl = formData.metadata_url && formData.metadata_url.trim() !== '';
+    const hasXml = formData.idp_metadata_xml && formData.idp_metadata_xml.trim() !== '';
+    const hasManual = formData.idp_entity_id && formData.idp_single_sign_on && formData.idp_certificate;
+
+    if (!hasMetadataUrl && !hasXml && !hasManual) {
+      toast.error('You must provide either a Metadata URL, IDP Metadata XML, or manual IDP configuration (Entity ID, SSO URL, Certificate)');
       return;
     }
 
@@ -336,8 +347,9 @@ export function SAMLConnections() {
           
           <form onSubmit={handleSubmit}>
             <Tabs defaultValue="basic" className="w-full">
-              <TabsList className="grid w-full grid-cols-3">
+              <TabsList className="grid w-full grid-cols-4">
                 <TabsTrigger value="basic">Basic</TabsTrigger>
+                <TabsTrigger value="idp">Identity Provider</TabsTrigger>
                 <TabsTrigger value="settings">Settings</TabsTrigger>
                 <TabsTrigger value="mapping">Attribute Mapping</TabsTrigger>
               </TabsList>
@@ -350,9 +362,9 @@ export function SAMLConnections() {
                     value={formData.name}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                     placeholder="Okta Employee Login"
-                    data-testid="saml-connection-name-input"
                   />
                 </div>
+
                 <div className="space-y-2">
                   <Label>Tenant *</Label>
                   <Select
@@ -360,46 +372,117 @@ export function SAMLConnections() {
                       onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
                       // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
                   >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a tenant" />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue placeholder="Select a tenant" /></SelectTrigger>
                     <SelectContent>
                       {tenants.map((tenant) => (
-                          <SelectItem key={tenant.id} value={tenant.id}>
-                            {tenant.display_name || tenant.name}
-                          </SelectItem>
+                          <SelectItem key={tenant.id} value={tenant.id}>{tenant.display_name || tenant.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
                 </div>
 
                 <div className="space-y-2">
+                  <Label htmlFor="metadata-url">IdP Metadata URL</Label>
+                  <Input
+                    id="metadata-url"
+                    value={formData.metadata_url || ''}
+                    onChange={(e) => setFormData({ ...formData, metadata_url: e.target.value })}
+                    placeholder="https://dev-xxxx.okta.com/app/.../sso/saml/metadata"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Easiest method. Provide the URL to auto-configure the connection.
+                  </p>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="idp" className="space-y-4 mt-4">
+                <div className="space-y-2 pb-2 border-b border-border/40">
+                  <h4 className="text-sm font-medium">Manual Configuration</h4>
+                  <p className="text-xs text-muted-foreground">Fill these if you do not have a Metadata URL or XML.</p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label htmlFor="idp-entity-id">IdP Entity ID</Label>
+                        <Input
+                            id="idp-entity-id"
+                            value={formData.idp_entity_id || ''}
+                            onChange={(e) => setFormData({...formData, idp_entity_id: e.target.value})}
+                            placeholder="http://www.okta.com/exk..."
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="idp-sso-url">IdP SSO URL</Label>
+                        <Input
+                            id="idp-sso-url"
+                            value={formData.idp_single_sign_on || ''}
+                            onChange={(e) => setFormData({...formData, idp_single_sign_on: e.target.value})}
+                            placeholder="https://dev-xxxx.okta.com/app/.../sso/saml"
+                        />
+                    </div>
+                </div>
+
+                <div className="space-y-2">
+                    <Label htmlFor="idp-slo-url">IdP SLO URL</Label>
+                    <Input
+                        id="idp-slo-url"
+                        value={formData.idp_slo_url || ''}
+                        onChange={(e) => setFormData({...formData, idp_slo_url: e.target.value})}
+                        placeholder="https://dev-xxxx.okta.com/app/.../slo/saml"
+                    />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                        <Label>IdP Certificate (Signing)</Label>
+                        <Textarea
+                            value={formData.idp_certificate || ''}
+                            onChange={(e) => setFormData({...formData, idp_certificate: e.target.value})}
+                            placeholder={`-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
+                            rows={4}
+                            className="font-mono text-sm"
+                        />
+                    </div>
+                    <div className="space-y-2">
+                        <Label>IdP Encryption Certificate</Label>
+                        <Textarea
+                            value={formData.idp_encryption_certificate || ''}
+                            onChange={(e) => setFormData({...formData, idp_encryption_certificate: e.target.value})}
+                            placeholder={`-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
+                            rows={4}
+                            className="font-mono text-sm"
+                        />
+                    </div>
+                </div>
+
+                <div className="relative flex py-4 items-center">
+                    <div className="flex-grow border-t border-border/40"></div>
+                    <span className="flex-shrink-0 mx-4 text-muted-foreground text-xs uppercase">OR PASTE XML</span>
+                    <div className="flex-grow border-t border-border/40"></div>
+                </div>
+
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <Label>IDP Metadata XML *</Label>
+                    <Label>IDP Metadata XML</Label>
                     <Button
                       type="button"
                       variant="outline"
                       size="sm"
                       onClick={handlePaste}
-                      data-testid="paste-metadata-btn"
                     >
                       <ClipboardPaste className="h-4 w-4 mr-2" />
                       Paste
                     </Button>
                   </div>
                   <Textarea
-                    value={formData.idp_metadata_xml}
+                    value={formData.idp_metadata_xml || ''}
                     onChange={(e) => setFormData({ ...formData, idp_metadata_xml: e.target.value })}
-                    placeholder={`<?xml version="1.0" encoding="UTF-8"?>
-<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="...">
-  <!-- Paste your IdP metadata here -->
-</EntityDescriptor>`}
-                    rows={12}
+                    placeholder={`<?xml version="1.0" encoding="UTF-8"?>\n<EntityDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" entityID="...">\n  \n</EntityDescriptor>`}
+                    rows={6}
                     className="font-mono text-sm"
-                    data-testid="saml-metadata-textarea"
                   />
                   <p className="text-xs text-muted-foreground">
-                    Paste the SAML metadata XML from your Identity Provider (Okta, Azure AD, etc.)
+                    Fallback: Paste the raw SAML metadata XML if you don't have a URL and don't want to use manual fields.
                   </p>
                 </div>
               </TabsContent>
@@ -437,7 +520,8 @@ export function SAMLConnections() {
 
               <TabsContent value="mapping" className="space-y-4 mt-4">
                 <div className="space-y-2">
-                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson} subtitle={"Map IdP SAML attributes to OIDC standard claims"} />
+                  <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson}
+                                          subtitle={"Map IdP SAML attributes to OIDC standard claims"} tenantId={formData.tenant_id}/>
                 </div>
               </TabsContent>
             </Tabs>

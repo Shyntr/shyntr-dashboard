@@ -23,7 +23,7 @@ export function MultiInput({
     onChange(newValues);
   };
 
-  const displayValues = values.length > 0 ? values : [''];
+  const displayValues = values && values.length > 0 ? values : [''];
 
   return (
     <div className="space-y-2">

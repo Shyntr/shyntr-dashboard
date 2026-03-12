@@ -71,6 +71,12 @@ const RESPONSE_TYPES = [
     'code id_token token'
 ];
 
+const RESPONSE_MODES = [
+    'query',
+    'fragment',
+    'form_post'
+];
+
 const RESPONSE_TYPE_LABELS = {
     'code': 'Code',
     'token': 'Token',
@@ -95,6 +101,9 @@ const defaultClient = {
     client_secret: '',
     redirect_uris: [''],
     allowed_cors_origins: [''],
+    post_logout_redirect_uris: [''],
+    backchannel_logout_uri: '',
+    response_modes: ['query', 'fragment', 'form_post'],
     grant_types: ['authorization_code'],
     response_types: ['code'],
     scopes: ['openid', 'profile', 'email'],
@@ -149,6 +158,7 @@ export function OIDCClients() {
         setFormData({
             ...client,
             redirect_uris: client.redirect_uris?.length ? client.redirect_uris : [''],
+            post_logout_redirect_uris: client.post_logout_redirect_uris?.length ? client.post_logout_redirect_uris : [''],
             allowed_cors_origins: client.allowed_cors_origins?.length ? client.allowed_cors_origins : [''],
             audience: client.audience || []
         });
@@ -163,7 +173,7 @@ export function OIDCClients() {
 
     const handleDelete = async () => {
         try {
-            await deleteOIDCClient(selectedClient.client_id);
+            await deleteOIDCClient(selectedClient.client_id, selectedClient.tenant_id);
             toast.success('Client deleted successfully');
             fetchClients();
         } catch (error) {
@@ -186,6 +196,7 @@ export function OIDCClients() {
             ...formData,
             redirect_uris: formData.redirect_uris.filter(u => u.trim()),
             allowed_cors_origins: formData.allowed_cors_origins.filter(o => o.trim()),
+            post_logout_redirect_uris: (formData.post_logout_redirect_uris || []).filter(u => u.trim()),
             scopes: formData.scopes.filter(s => s.trim()),
             audience: formData.audience.filter(a => a.trim())
         };
@@ -421,7 +432,7 @@ export function OIDCClients() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Tenant</Label>
+                                    <Label>Tenant *</Label>
                                     <Select
                                         value={formData.tenant_id}
                                         onValueChange={(value) => setFormData({...formData, tenant_id: value})}
@@ -443,21 +454,38 @@ export function OIDCClients() {
                                 <div className="space-y-2">
                                     <Label>Client Secret</Label>
                                     <SecretInput
+                                        readOnly={formData.token_endpoint_auth_method === "none"}
                                         value={formData.client_secret}
                                         onChange={(e) => setFormData({...formData, client_secret: e.target.value})}
                                         placeholder="Leave empty to auto-generate"
-                                        showCopy={isEditing}
+                                        showCopy={isEditing && formData.token_endpoint_auth_method !== "none"}
                                         testId="oidc-client-secret-input"
                                     />
-                                    {!isEditing && (
+                                    {!isEditing && formData.token_endpoint_auth_method !== "none" && (
                                         <p className="text-xs text-muted-foreground">
                                             Leave empty to auto-generate a secure secret
+                                        </p>
+                                    )}
+                                    {formData.token_endpoint_auth_method === "none" && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Leave empty for public clients
                                         </p>
                                     )}
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label>Redirect URIs</Label>
+                                    <Label htmlFor="name">Backchannel Logout URI</Label>
+                                    <Input
+                                        id="backchannel-logout-uri-input"
+                                        value={formData.backchannel_logout_uri || ''}
+                                        onChange={(e) => setFormData({...formData, backchannel_logout_uri: e.target.value})}
+                                        placeholder="https://app.example.com/backchannel/logout"
+                                        data-testid="backchannel-logout-uri-input"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Redirect URIs *</Label>
                                     <MultiInput
                                         values={formData.redirect_uris}
                                         onChange={(values) => setFormData({...formData, redirect_uris: values})}
@@ -517,7 +545,7 @@ export function OIDCClients() {
                                                 key={type}
                                                 variant="outline"
                                                 className={`cursor-pointer transition-colors ${
-                                                    formData.response_types.includes(type)
+                                                    (formData.response_types || []).includes(type)
                                                         ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
                                                         : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
                                                 }`}
@@ -529,7 +557,26 @@ export function OIDCClients() {
                                         ))}
                                     </div>
                                 </div>
-
+                                <div className="space-y-2">
+                                    <Label>Response Modes</Label>
+                                    <div className="flex flex-wrap gap-2">
+                                        {RESPONSE_MODES.map((mode) => (
+                                            <Badge
+                                                key={mode}
+                                                variant="outline"
+                                                className={`cursor-pointer transition-colors ${
+                                                    (formData.response_modes || []).includes(mode)
+                                                        ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
+                                                        : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
+                                                }`}
+                                                onClick={() => toggleArrayItem(formData.response_modes || [], mode, setFormData, 'response_modes')}
+                                                data-testid={`response-mode-${mode}`}
+                                            >
+                                                {mode}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </div>
                                 <div className="space-y-2">
                                     <Label>Scopes (comma-separated)</Label>
                                     <Input
@@ -564,7 +611,10 @@ export function OIDCClients() {
                                         value={formData.token_endpoint_auth_method}
                                         onValueChange={(value) => setFormData({
                                             ...formData,
-                                            token_endpoint_auth_method: value
+                                            token_endpoint_auth_method: value,
+                                            enforce_pkce: value === "none" ? true : formData.enforce_pkce,
+                                            public: value === "none",
+                                            client_secret: value === "none" ? "" : formData.client_secret,
                                         })}
                                     >
                                         <SelectTrigger data-testid="oidc-auth-method-select">
@@ -591,8 +641,8 @@ export function OIDCClients() {
                                         </div>
                                         <Switch
                                             checked={formData.public}
-                                            disabled={formData.token_endpoint_auth_method === "none"}
-                                            onCheckedChange={(checked) => setFormData({...formData, public: formData.token_endpoint_auth_method === "none" || checked})}
+                                            disabled={formData.token_endpoint_auth_method !== "none"}
+                                            onCheckedChange={(checked) => setFormData({...formData, public: checked})}
                                             data-testid="oidc-public-toggle"
                                         />
                                     </div>
