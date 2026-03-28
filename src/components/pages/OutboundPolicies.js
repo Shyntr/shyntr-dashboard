@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useCallback} from 'react';
 import {Plus, Pencil, Trash2, ShieldAlert, RefreshCw, Network} from 'lucide-react';
 import {Card, CardContent} from '../ui/card';
 import {Button} from '../ui/button';
@@ -61,28 +61,22 @@ export function OutboundPolicies() {
     const [selectedTenantFilter, setSelectedTenantFilter] = useState('all');
     const [loading, setLoading] = useState(true);
 
-    // Dialog states
     const [dialogOpen, setDialogOpen] = useState(false);
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedPolicy, setSelectedPolicy] = useState(null);
     const [formData, setFormData] = useState(defaultPolicy);
     const [isEditing, setIsEditing] = useState(false);
 
-    useEffect(() => {
-        fetchTenants();
-        fetchPolicies();
-    }, [selectedTenantFilter]);
-
-    const fetchTenants = async () => {
+    const fetchTenants = useCallback(async () => {
         try {
             const response = await getTenants();
             setTenants(response.data || []);
         } catch (error) {
             toast.error('Failed to load tenants');
         }
-    };
+    }, []);
 
-    const fetchPolicies = async () => {
+    const fetchPolicies = useCallback(async () => {
         setLoading(true);
         try {
             const tenantId = selectedTenantFilter === 'all' ? undefined : selectedTenantFilter;
@@ -93,7 +87,12 @@ export function OutboundPolicies() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [selectedTenantFilter]);
+
+    useEffect(() => {
+        fetchTenants();
+        fetchPolicies();
+    }, [fetchTenants, fetchPolicies]);
 
     const getTenantName = (tenantId) => {
         if (!tenantId) return 'Global / All';
