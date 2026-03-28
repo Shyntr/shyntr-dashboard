@@ -10,6 +10,7 @@ import {
   Moon,
   ChevronDown,
   Fingerprint,
+  ShieldAlert,
   Settings as SettingsIcon
 } from 'lucide-react';
 import { Button } from '../ui/button';
@@ -38,6 +39,7 @@ const navigation = [
   },
   { name: 'Tenants', href: '/tenants', icon: Building2 },
   { name: 'Scopes', href: '/scopes', icon: Fingerprint },
+  { name: 'Outbound Policies', href: '/outbound-policies', icon: ShieldAlert },
   { name: 'Settings', href: '/settings', icon: SettingsIcon },
 ];
 
@@ -103,7 +105,7 @@ function NavItem({ item, mobile, onClose }) {
   return (
     <Link
       to={item.href}
-      data-testid={`nav-${item.name.toLowerCase()}`}
+      data-testid={`nav-${item.name.toLowerCase().replace(/\s/g, '-')}`}
       onClick={mobile ? onClose : undefined}
       className={cn(
         'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-200',

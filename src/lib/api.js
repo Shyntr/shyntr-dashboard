@@ -63,10 +63,18 @@ export const createOIDCConnection = (data) => api.post('/oidc-connections', data
 export const updateOIDCConnection = (id, data) => api.put(`/oidc-connections/${id}`, data);
 export const deleteOIDCConnection = (id, tenantId) => api.delete(`/oidc-connections/${tenantId}/${id}`);
 
+// Scopes
 export const getScopes = (tenantId) => api.get(`/tenants/${tenantId}/scopes`);
 export const getScope = (tenantId, id) => api.get(`/tenants/${tenantId}/scopes/${id}`);
 export const createScope = (tenantId, data) => api.post(`/tenants/${tenantId}/scopes`, data);
 export const updateScope = (tenantId, id, data) => api.put(`/tenants/${tenantId}/scopes/${id}`, data);
 export const deleteScope = (tenantId, id) => api.delete(`/tenants/${tenantId}/scopes/${id}`);
+
+// Outbound Policies (Egress & SSRF Protection)
+export const getOutboundPolicies = (tenantId) => api.get('/outbound-policies', { params: { tenant_id: tenantId } });
+export const createOutboundPolicy = (data) => api.post('/outbound-policies', data);
+export const getOutboundPolicy = (id) => api.get(`/outbound-policies/${id}`);
+export const updateOutboundPolicy = (id, data) => api.put(`/outbound-policies/${id}`, data);
+export const deleteOutboundPolicy = (id) => api.delete(`/outbound-policies/${id}`);
 
 export default api;
