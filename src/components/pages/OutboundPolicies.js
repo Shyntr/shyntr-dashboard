@@ -42,14 +42,20 @@ const defaultPolicy = {
     name: '',
     tenant_id: 'default',
     target: 'webhook_delivery',
+    enabled: false,
+
     // Secure by default SSRF settings
     block_private_ips: true,
     block_loopback_ips: true,
+    block_link_local_ips: true,
+    block_multicast_ips: true,
     block_localhost_names: true,
+    disable_redirects: true,
     require_dns_resolve: true,
     // Restrictions
     allowed_host_patterns: ['*'],
     allowed_path_patterns: ['/*'],
+    allowed_schemes: ['https'],
     allowed_ports: ['443'],
     max_response_bytes: 5242880, // 5MB
     request_timeout_seconds: 10
@@ -108,7 +114,16 @@ export function OutboundPolicies() {
 
     const handleEditClick = (policy) => {
         setFormData({
+        ...defaultPolicy,
             ...policy,
+        enabled: policy.enabled ?? true,
+        block_private_ips: policy.block_private_ips ?? true,
+        block_loopback_ips: policy.block_loopback_ips ?? true,
+        block_link_local_ips: policy.block_link_local_ips ?? true,
+        block_multicast_ips: policy.block_multicast_ips ?? true,
+        block_localhost_names: policy.block_localhost_names ?? true,
+        disable_redirects: policy.disable_redirects ?? true,
+        require_dns_resolve: policy.require_dns_resolve ?? true,
             allowed_ports: policy.allowed_ports?.map(String) || ['443']
         });
         setSelectedPolicy(policy);
@@ -238,6 +253,7 @@ export function OutboundPolicies() {
                             <TableHeader>
                                 <TableRow className="bg-muted/50">
                                     <TableHead className="text-xs uppercase tracking-wider">Policy Name</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider">Status</TableHead>
                                     <TableHead className="text-xs uppercase tracking-wider">Target</TableHead>
                                     <TableHead
                                         className="text-xs uppercase tracking-wider hidden md:table-cell">Tenant</TableHead>
@@ -256,6 +272,18 @@ export function OutboundPolicies() {
                                                 <span className="font-medium text-foreground">{policy.name}</span>
                                         </TableCell>
                                         <TableCell>
+                                            <Badge
+                                                variant="outline"
+                                                className={
+                                                    policy.enabled
+                                                        ? 'bg-emerald-500/15 text-emerald-500 border-emerald-500/20'
+                                                        : 'bg-zinc-500/15 text-zinc-400 border-zinc-500/20'
+                                                }
+                                            >
+                                                {policy.enabled ? 'Enabled' : 'Disabled'}
+                                            </Badge>
+                                        </TableCell>
+                                        <TableCell>
                                             <Badge variant="outline" className="text-xs bg-muted/30">
                                                 {getTargetLabel(policy.target)}
                                             </Badge>
@@ -268,6 +296,14 @@ export function OutboundPolicies() {
                                         </TableCell>
                                         <TableCell className="hidden lg:table-cell">
                                             <div className="flex flex-wrap gap-1">
+                                                {policy.block_link_local_ips && (
+                                                    <span
+                                                        className="text-[10px] bg-emerald-500/15 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/30">No Local IP</span>
+                                                )}
+                                                {policy.block_multicast_ips && (
+                                                    <span
+                                                        className="text-[10px] bg-emerald-500/15 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/30">No Multicast</span>
+                                                )}
                                                 {policy.block_private_ips && (
                                                     <span
                                                         className="text-[10px] bg-emerald-500/15 text-emerald-500 px-1.5 py-0.5 rounded border border-emerald-500/30">No Private IP</span>
@@ -334,7 +370,20 @@ export function OutboundPolicies() {
                             </TabsList>
 
                             <TabsContent value="basic" className="space-y-4 mt-4">
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="grid grid-cols-1 gap-4">
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                        <div>
+                                            <Label className="text-sm font-medium">Enabled</Label>
+                                            <p className="text-xs text-muted-foreground">
+                                                Enable or disable this outbound policy
+                                            </p>
+                                        </div>
+                                        <Switch
+                                            checked={!!formData.enabled}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
+                                            data-testid="outbound-policy-enabled-toggle"
+                                        />
+                                    </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="policy-name">Policy Name *</Label>
                                         <Input
@@ -432,6 +481,28 @@ export function OutboundPolicies() {
                                             })}
                                         />
                                     </div>
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                        <div>
+                                            <Label className="text-sm font-medium">Block Link-Local IPs</Label>
+                                            <p className="text-xs text-muted-foreground">Block 169.254.0.0/16 and link-local ranges</p>
+                                        </div>
+                                        <Switch
+                                            checked={!!formData.block_link_local_ips}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, block_link_local_ips: checked })}
+                                            data-testid="outbound-policy-block-link-local-ips"
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                        <div>
+                                            <Label className="text-sm font-medium">Block Multicast IPs</Label>
+                                            <p className="text-xs text-muted-foreground">Prevent multicast/broadcast-style destinations</p>
+                                        </div>
+                                        <Switch
+                                            checked={!!formData.block_multicast_ips}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, block_multicast_ips: checked })}
+                                            data-testid="outbound-policy-block-multicast-ips"
+                                        />
+                                    </div>
                                     <div
                                         className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
@@ -443,6 +514,17 @@ export function OutboundPolicies() {
                                         <Switch
                                             checked={formData.require_dns_resolve}
                                             onCheckedChange={(c) => setFormData({...formData, require_dns_resolve: c})}
+                                        />
+                                    </div>
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                        <div>
+                                            <Label className="text-sm font-medium">Disable Redirects</Label>
+                                            <p className="text-xs text-muted-foreground">Do not follow HTTP redirects</p>
+                                        </div>
+                                        <Switch
+                                            checked={!!formData.disable_redirects}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, disable_redirects: checked })}
+                                            data-testid="outbound-policy-disable-redirects"
                                         />
                                     </div>
                                 </div>
@@ -478,6 +560,16 @@ export function OutboundPolicies() {
                                         />
                                         <p className="text-xs text-muted-foreground">Max duration for external call</p>
                                     </div>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label>Allowed Schemes</Label>
+                                    <MultiInput
+                                        values={formData.allowed_schemes}
+                                        onChange={(values) => setFormData({...formData, allowed_schemes: values})}
+                                        placeholder="https"
+                                        testId="outbound-schemes"
+                                    />
                                 </div>
 
                                 <div className="space-y-2">
