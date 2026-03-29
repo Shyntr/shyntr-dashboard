@@ -50,7 +50,7 @@ const defaultPolicy = {
     // Restrictions
     allowed_host_patterns: ['*'],
     allowed_path_patterns: ['/*'],
-    allowed_ports: ['443'], // Stored as string array in form, converted to int on submit
+    allowed_ports: ['443'],
     max_response_bytes: 5242880, // 5MB
     request_timeout_seconds: 10
 };
@@ -142,7 +142,6 @@ export function OutboundPolicies() {
             return;
         }
 
-        // Clean up and type cast payload
         const cleanData = {
             ...formData,
             allowed_host_patterns: formData.allowed_host_patterns.filter(p => p.trim()),
@@ -176,9 +175,13 @@ export function OutboundPolicies() {
         });
     };
 
+    const getTargetLabel = (targetValue) => {
+        const target = TARGET_TYPES.find(t => t.value === targetValue);
+        return target ? target.label : targetValue?.replace('_', ' ');
+    };
+
     return (
         <div className="p-6 lg:p-8 space-y-8 animate-fade-in" data-testid="outbound-policies-page">
-            {/* Header */}
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div className="space-y-2">
                     <div className="flex items-center gap-3">
@@ -215,7 +218,6 @@ export function OutboundPolicies() {
                 </div>
             </div>
 
-            {/* Content List */}
             {loading ? (
                 <div className="flex items-center justify-center py-16">
                     <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground"/>
@@ -225,7 +227,7 @@ export function OutboundPolicies() {
                     icon={Network}
                     title="No Outbound Policies"
                     description="Zero Trust architecture requires explicit outbound policies. Create a policy to allow outbound network traffic."
-                    actionLabel="Create Outbound Policy"
+                    actionLabel="Create Policy"
                     onAction={handleCreateClick}
                     testId="empty-outbound-policies"
                 />
@@ -251,13 +253,11 @@ export function OutboundPolicies() {
                                 {policies.map((policy) => (
                                     <TableRow key={policy.id} className="hover:bg-muted/30 border-b border-border/40">
                                         <TableCell>
-                                            <div className="flex items-center gap-2">
                                                 <span className="font-medium text-foreground">{policy.name}</span>
-                                            </div>
                                         </TableCell>
                                         <TableCell>
                                             <Badge variant="outline" className="text-xs bg-muted/30">
-                                                {policy.target?.replace('_', ' ')}
+                                                {getTargetLabel(policy.target)}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">
@@ -313,7 +313,6 @@ export function OutboundPolicies() {
                 </Card>
             )}
 
-            {/* Create/Edit Dialog */}
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
                     <DialogHeader>
@@ -334,7 +333,6 @@ export function OutboundPolicies() {
                                 <TabsTrigger value="restrictions">Restrictions</TabsTrigger>
                             </TabsList>
 
-                            {/* TAB 1: Basic Settings */}
                             <TabsContent value="basic" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -390,7 +388,6 @@ export function OutboundPolicies() {
                                 </div>
                             </TabsContent>
 
-                            {/* TAB 2: Network Security (SSRF) */}
                             <TabsContent value="security" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                                     <div
@@ -451,7 +448,6 @@ export function OutboundPolicies() {
                                 </div>
                             </TabsContent>
 
-                            {/* TAB 3: Restrictions */}
                             <TabsContent value="restrictions" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <div className="space-y-2">
@@ -535,13 +531,13 @@ export function OutboundPolicies() {
                 </DialogContent>
             </Dialog>
 
-            {/* Delete Dialog */}
             <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Outbound Policy</AlertDialogTitle>
                         <AlertDialogDescription>
                             Are you sure you want to delete the policy <strong>{selectedPolicy?.name}</strong>?
+                            <br/><br/>
                             Network traffic depending on this rule will be immediately blocked according to Zero Trust
                             principles.
                         </AlertDialogDescription>
