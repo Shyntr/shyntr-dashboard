@@ -1,15 +1,15 @@
-import {useEffect, useState} from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     Plus, Pencil, Trash2, Building2, RefreshCw, Lock,
     Globe, ShieldCheck, FileCode2, ExternalLink, Link as LinkIcon, Copy,
     Fingerprint, KeyRound
 } from 'lucide-react';
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '../ui/card';
-import {Button} from '../ui/button';
-import {Badge} from '../ui/badge';
-import {Input} from '../ui/input';
-import {Label} from '../ui/label';
-import {Textarea} from '../ui/textarea';
+import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '../ui/dialog';
@@ -21,14 +21,13 @@ import {
     DropdownMenu, DropdownMenuContent, DropdownMenuItem,
     DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '../ui/dropdown-menu';
-import {toast} from 'sonner';
-import {EmptyState} from '../shared/EmptyState';
-import {CopyButton} from '../shared/CopyButton';
+import { toast } from 'sonner';
+import { CopyButton } from '../shared/CopyButton';
 import {
     getTenants, createTenant, updateTenant, deleteTenant,
     getOIDCConnections, getSAMLConnections
 } from '../../lib/api';
-import {Switch} from "@/components/ui/switch";
+import { Switch } from "@/components/ui/switch";
 
 const defaultTenant = {
     name: '',
@@ -54,68 +53,166 @@ export function Tenants() {
     const [availableOIDC, setAvailableOIDC] = useState([]);
     const [availableSAML, setAvailableSAML] = useState([]);
 
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [isSavingAuthMethods, setIsSavingAuthMethods] = useState(false);
+
+    const latestTenantsRequestRef = useRef(0);
+    const activeTenantsRequestRef = useRef(null);
+    const latestProvidersRequestRef = useRef(0);
+    const activeProvidersRequestRef = useRef(null);
+
     useEffect(() => {
         fetchTenants();
         fetchProviders();
+
+        return () => {
+            if (activeTenantsRequestRef.current) {
+                activeTenantsRequestRef.current.cancelled = true;
+            }
+            if (activeProvidersRequestRef.current) {
+                activeProvidersRequestRef.current.cancelled = true;
+            }
+        };
     }, []);
 
     const fetchTenants = async () => {
+        const requestId = latestTenantsRequestRef.current + 1;
+        latestTenantsRequestRef.current = requestId;
+
+        if (activeTenantsRequestRef.current) {
+            activeTenantsRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = { id: requestId, cancelled: false };
+        activeTenantsRequestRef.current = requestToken;
+
+        setLoading(true);
+
         try {
             const response = await getTenants();
-            setTenants(response.data);
+
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
+            setTenants(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             toast.error(error.message || 'Failed to load tenants');
         } finally {
-            setLoading(false);
+            if (
+                !requestToken.cancelled &&
+                activeTenantsRequestRef.current?.id === requestId
+            ) {
+                setLoading(false);
+            }
         }
     };
 
     const fetchProviders = async () => {
+        const requestId = latestProvidersRequestRef.current + 1;
+        latestProvidersRequestRef.current = requestId;
+
+        if (activeProvidersRequestRef.current) {
+            activeProvidersRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = { id: requestId, cancelled: false };
+        activeProvidersRequestRef.current = requestToken;
+
         try {
             const [oidcRes, samlRes] = await Promise.all([
                 getOIDCConnections(),
                 getSAMLConnections()
             ]);
+
+            if (
+                requestToken.cancelled ||
+                activeProvidersRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             setAvailableOIDC(oidcRes.data || []);
             setAvailableSAML(samlRes.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeProvidersRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             console.error('Failed to fetch providers', error);
         }
     };
 
     const handleCreate = () => {
+        if (isSubmitting || isDeleting || isSavingAuthMethods) {
+            return;
+        }
+
         setFormData(defaultTenant);
+        setSelectedTenant(null);
         setIsEditing(false);
         setDialogOpen(true);
     };
 
     const handleEdit = (tenant) => {
+        if (isSubmitting || isDeleting || isSavingAuthMethods) {
+            return;
+        }
+
         if (tenant.name === 'default') {
             toast.error('Cannot edit the default tenant');
             return;
         }
+
         setFormData(tenant);
+        setSelectedTenant(tenant);
         setIsEditing(true);
         setDialogOpen(true);
     };
 
     const handleDeleteClick = (tenant) => {
+        if (isSubmitting || isDeleting || isSavingAuthMethods) {
+            return;
+        }
+
         if (tenant.name === 'default') {
             toast.error('Cannot delete the default tenant');
             return;
         }
+
         setSelectedTenant(tenant);
         setDeleteDialogOpen(true);
     };
 
     const handleDelete = async () => {
+        if (isDeleting || !selectedTenant?.id) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         try {
             await deleteTenant(selectedTenant.id);
             toast.success('Tenant deleted successfully');
-            fetchTenants();
+            await fetchTenants();
         } catch (error) {
             toast.error(error.message || 'Failed to delete tenant');
         } finally {
+            setIsDeleting(false);
             setDeleteDialogOpen(false);
             setSelectedTenant(null);
         }
@@ -123,6 +220,10 @@ export function Tenants() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         if (!formData.name.trim()) {
             toast.error('Tenant name is required');
@@ -134,6 +235,8 @@ export function Tenants() {
             return;
         }
 
+        setIsSubmitting(true);
+
         try {
             if (isEditing) {
                 await updateTenant(formData.id, formData);
@@ -142,10 +245,13 @@ export function Tenants() {
                 await createTenant(formData);
                 toast.success('Tenant created successfully');
             }
+
+            await fetchTenants();
             setDialogOpen(false);
-            fetchTenants();
         } catch (error) {
             toast.error(error.message || 'Failed to save tenant');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -183,6 +289,10 @@ export function Tenants() {
     ];
 
     const handleAuthMethodsClick = (tenant) => {
+        if (isSubmitting || isDeleting || isSavingAuthMethods) {
+            return;
+        }
+
         setSelectedAuthTenant({
             ...tenant,
             login_methods: tenant.login_methods || ['password']
@@ -191,25 +301,37 @@ export function Tenants() {
     };
 
     const handleSaveAuthMethods = async () => {
+        if (isSavingAuthMethods || !selectedAuthTenant?.id) {
+            return;
+        }
+
+        setIsSavingAuthMethods(true);
+
         try {
             await updateTenant(selectedAuthTenant.id, {
                 login_methods: selectedAuthTenant.login_methods
             });
             toast.success('Login methods updated successfully');
+            await fetchTenants();
             setAuthMethodsOpen(false);
-            fetchTenants();
         } catch (error) {
             toast.error(error.message || 'Failed to update login methods');
+        } finally {
+            setIsSavingAuthMethods(false);
         }
     };
 
     const toggleLoginMethod = (methodId, checked) => {
+        if (isSavingAuthMethods) {
+            return;
+        }
+
         setSelectedAuthTenant(prev => {
             const methods = prev.login_methods || [];
             if (checked && !methods.includes(methodId)) {
-                return {...prev, login_methods: [...methods, methodId]};
+                return { ...prev, login_methods: [...methods, methodId] };
             } else if (!checked) {
-                return {...prev, login_methods: methods.filter(m => m !== methodId)};
+                return { ...prev, login_methods: methods.filter(m => m !== methodId) };
             }
             return prev;
         });
@@ -230,15 +352,16 @@ export function Tenants() {
                     onClick={handleCreate}
                     data-testid="create-tenant-btn"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                    disabled={isSubmitting || isDeleting || isSavingAuthMethods}
                 >
-                    <Plus className="h-4 w-4 mr-2"/>
+                    <Plus className="h-4 w-4 mr-2" />
                     Create Tenant
                 </Button>
             </div>
 
             {loading ? (
                 <div className="flex items-center justify-center py-16">
-                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground"/>
+                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -251,81 +374,84 @@ export function Tenants() {
                             <CardHeader className="pb-3">
                                 <div className="flex items-start justify-between">
                                     <div className="flex items-center gap-3">
-                                        <div
-                                            className="h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
-                                            <Building2 className="h-5 w-5 text-violet-500"/>
+                                        <div className="h-10 w-10 rounded-lg bg-violet-500/10 flex items-center justify-center">
+                                            <Building2 className="h-5 w-5 text-violet-500" />
                                         </div>
                                         <div>
                                             <CardTitle className="text-lg font-heading flex items-center gap-2">
                                                 {tenant.display_name || tenant.name}
                                                 {tenant.name === 'default' && (
-                                                    <Lock className="h-4 w-4 text-muted-foreground"/>
+                                                    <Lock className="h-4 w-4 text-muted-foreground" />
                                                 )}
                                             </CardTitle>
                                             <div className="flex items-center gap-1">
                                                 <code className="text-xs font-mono text-muted-foreground">
                                                     {tenant.name}
                                                 </code>
-                                                <CopyButton value={tenant.name} testId={`copy-tenant-${tenant.name}`}/>
+                                                <CopyButton value={tenant.name} testId={`copy-tenant-${tenant.name}`} />
                                             </div>
                                         </div>
                                     </div>
                                     <div className="flex flex-col items-end gap-2">
                                         {tenant.name === 'default' && (
-                                            <Badge variant="outline"
-                                                   className="bg-emerald-500/15 text-emerald-500 border-emerald-500/20">
+                                            <Badge variant="outline" className="bg-emerald-500/15 text-emerald-500 border-emerald-500/20">
                                                 Default
                                             </Badge>
                                         )}
 
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
-                                                <Button variant="outline" size="sm"
-                                                        className="h-8 px-2 gap-1.5 rounded-lg bg-muted/30">
-                                                    <LinkIcon className="w-3.5 h-3.5"/>
+                                                <Button variant="outline" size="sm" className="h-8 px-2 gap-1.5 rounded-lg bg-muted/30">
+                                                    <LinkIcon className="w-3.5 h-3.5" />
                                                     <span className="hidden sm:inline-block text-xs">Endpoints</span>
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end" className="w-72 rounded-xl">
-                                                <DropdownMenuLabel
-                                                    className="text-xs text-muted-foreground uppercase tracking-wider">
+                                                <DropdownMenuLabel className="text-xs text-muted-foreground uppercase tracking-wider">
                                                     {tenant.name} Endpoints
                                                 </DropdownMenuLabel>
-                                                <DropdownMenuSeparator/>
+                                                <DropdownMenuSeparator />
 
                                                 {getEndpoints(tenant.id).map((ep, idx) => {
                                                     const Icon = ep.icon;
                                                     return (
-                                                        <DropdownMenuItem key={idx}
-                                                                          className="flex flex-col items-start p-3 gap-2 cursor-default focus:bg-muted/50">
+                                                        <DropdownMenuItem
+                                                            key={idx}
+                                                            className="flex flex-col items-start p-3 gap-2 cursor-default focus:bg-muted/50"
+                                                        >
                                                             <div className="flex items-center gap-2 w-full">
-                                                                <Icon className={`w-4 h-4 ${ep.color}`}/>
+                                                                <Icon className={`w-4 h-4 ${ep.color}`} />
                                                                 <span className="font-medium text-sm">{ep.name}</span>
                                                             </div>
                                                             <div className="flex items-center w-full gap-1 mt-1">
-                                                                <code
-                                                                    className="flex-1 truncate text-xs text-muted-foreground bg-background border p-1 rounded">
+                                                                <code className="flex-1 truncate text-xs text-muted-foreground bg-background border p-1 rounded">
                                                                     {ep.url}
                                                                 </code>
                                                                 <Button
-                                                                    variant="secondary" size="icon"
+                                                                    variant="secondary"
+                                                                    size="icon"
                                                                     className="h-6 w-6 shrink-0"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         copyToClipboard(ep.url);
                                                                     }}
+                                                                    aria-label={`Copy ${ep.name} endpoint for tenant ${tenant.name}`}
+                                                                    title={`Copy ${ep.name} endpoint`}
                                                                 >
-                                                                    <Copy className="w-3 h-3"/>
+                                                                    <Copy className="w-3 h-3" />
                                                                 </Button>
                                                                 <Button
-                                                                    variant="secondary" size="icon"
+                                                                    variant="secondary"
+                                                                    size="icon"
                                                                     className="h-6 w-6 shrink-0"
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         window.open(ep.url, '_blank');
                                                                     }}
+                                                                    aria-label={`Open ${ep.name} endpoint for tenant ${tenant.name}`}
+                                                                    title={`Open ${ep.name} endpoint`}
                                                                 >
-                                                                    <ExternalLink className="w-3 h-3"/>
+                                                                    <ExternalLink className="w-3 h-3" />
                                                                 </Button>
                                                             </div>
                                                         </DropdownMenuItem>
@@ -343,9 +469,9 @@ export function Tenants() {
                                         {tenant.description}
                                     </p>
                                 )}
-                                <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                    <span>Created {formatDate(tenant.created_at)}</span>
-                                </div>
+                                {/*<div className="flex items-center justify-between text-xs text-muted-foreground">*/}
+                                {/*    <span>Created {formatDate(tenant.created_at)}</span>*/}
+                                {/*</div>*/}
                                 {tenant.name !== 'default' && (
                                     <div className="flex gap-2 pt-2 border-t border-border/40 mt-auto">
                                         <Button
@@ -353,8 +479,9 @@ export function Tenants() {
                                             size="sm"
                                             onClick={() => handleAuthMethodsClick(tenant)}
                                             className="flex-1 hover:bg-primary/10 hover:text-primary hover:border-primary/30"
+                                            disabled={isSubmitting || isDeleting || isSavingAuthMethods}
                                         >
-                                            <Fingerprint className="h-3 w-3 mr-1"/>
+                                            <Fingerprint className="h-3 w-3 mr-1" />
                                             Login Methods
                                         </Button>
                                         <Button
@@ -363,8 +490,9 @@ export function Tenants() {
                                             onClick={() => handleEdit(tenant)}
                                             data-testid={`edit-tenant-${tenant.name}`}
                                             className="flex-1"
+                                            disabled={isSubmitting || isDeleting || isSavingAuthMethods}
                                         >
-                                            <Pencil className="h-3 w-3 mr-1"/>
+                                            <Pencil className="h-3 w-3 mr-1" />
                                             Edit
                                         </Button>
                                         <Button
@@ -373,8 +501,9 @@ export function Tenants() {
                                             onClick={() => handleDeleteClick(tenant)}
                                             data-testid={`delete-tenant-${tenant.name}`}
                                             className="flex-1 hover:text-destructive hover:border-destructive"
+                                            disabled={isSubmitting || isDeleting || isSavingAuthMethods}
                                         >
-                                            <Trash2 className="h-3 w-3 mr-1"/>
+                                            <Trash2 className="h-3 w-3 mr-1" />
                                             Delete
                                         </Button>
                                     </div>
@@ -385,13 +514,11 @@ export function Tenants() {
                 </div>
             )}
 
-            {/* Info Card */}
             <Card className="bg-muted/30 border-border/40">
                 <CardContent className="p-6">
                     <div className="flex items-start gap-4">
-                        <div
-                            className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
-                            <Building2 className="h-5 w-5 text-primary"/>
+                        <div className="h-10 w-10 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                            <Building2 className="h-5 w-5 text-primary" />
                         </div>
                         <div>
                             <h3 className="font-heading font-semibold mb-1">About Tenants</h3>
@@ -406,8 +533,15 @@ export function Tenants() {
                 </CardContent>
             </Card>
 
-            {/* Create/Edit Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                    if (isSubmitting) {
+                        return;
+                    }
+                    setDialogOpen(open);
+                }}
+            >
                 <DialogContent className="max-w-lg bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading">
@@ -427,9 +561,9 @@ export function Tenants() {
                             <Input
                                 id="tenant-name"
                                 value={formData.name}
-                                onChange={(e) => setFormData({...formData, name: e.target.value.toLowerCase()})}
+                                onChange={(e) => setFormData({ ...formData, name: e.target.value.toLowerCase() })}
                                 placeholder="acme-corp"
-                                disabled={isEditing}
+                                disabled={isEditing || isSubmitting}
                                 data-testid="tenant-name-input"
                             />
                             <p className="text-xs text-muted-foreground">
@@ -442,9 +576,10 @@ export function Tenants() {
                             <Input
                                 id="display-name"
                                 value={formData.display_name || ''}
-                                onChange={(e) => setFormData({...formData, display_name: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, display_name: e.target.value })}
                                 placeholder="ACME Corporation"
                                 data-testid="tenant-display-name-input"
+                                disabled={isSubmitting}
                             />
                         </div>
 
@@ -453,10 +588,11 @@ export function Tenants() {
                             <Textarea
                                 id="description"
                                 value={formData.description || ''}
-                                onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder="Production tenant for ACME Corp"
                                 rows={3}
                                 data-testid="tenant-description-input"
+                                disabled={isSubmitting}
                             />
                         </div>
 
@@ -466,6 +602,7 @@ export function Tenants() {
                                 variant="outline"
                                 onClick={() => setDialogOpen(false)}
                                 data-testid="cancel-tenant-btn"
+                                disabled={isSubmitting}
                             >
                                 Cancel
                             </Button>
@@ -473,8 +610,11 @@ export function Tenants() {
                                 type="submit"
                                 data-testid="save-tenant-btn"
                                 className="bg-primary hover:bg-primary/90"
+                                disabled={isSubmitting}
                             >
-                                {isEditing ? 'Update Tenant' : 'Create Tenant'}
+                                {isSubmitting
+                                    ? (isEditing ? 'Updating...' : 'Creating...')
+                                    : (isEditing ? 'Update Tenant' : 'Create Tenant')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -482,11 +622,19 @@ export function Tenants() {
             </Dialog>
 
             {/* Login Methods (Auth Methods) Dialog */}
-            <Dialog open={authMethodsOpen} onOpenChange={setAuthMethodsOpen}>
+            <Dialog
+                open={authMethodsOpen}
+                onOpenChange={(open) => {
+                    if (isSavingAuthMethods) {
+                        return;
+                    }
+                    setAuthMethodsOpen(open);
+                }}
+            >
                 <DialogContent className="max-w-xl bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading flex items-center gap-2">
-                            <Fingerprint className="h-5 w-5 text-primary"/>
+                            <Fingerprint className="h-5 w-5 text-primary" />
                             Login Methods: {selectedAuthTenant?.display_name || selectedAuthTenant?.name}
                         </DialogTitle>
                         <DialogDescription>
@@ -498,68 +646,84 @@ export function Tenants() {
                         <div className="space-y-6 py-4">
                             {/* Local Auth */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Local
-                                    Authentication</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Local Authentication
+                                </h4>
                                 <div className="flex items-center justify-between p-4 rounded-lg border bg-muted/20">
-                                    <div className="flex flex-col">
-                                        <span className="font-medium text-sm">Password Login</span>
-                                        <span className="text-xs text-muted-foreground">Standard login with username/email and password</span>
+                                    <div className="flex items-center gap-2">
+                                        <Fingerprint className="h-4 w-4 text-primary" />
+                                        <span className="text-sm">Username / Password</span>
                                     </div>
                                     <Switch
                                         checked={selectedAuthTenant.login_methods.includes('password')}
                                         onCheckedChange={(c) => toggleLoginMethod('password', c)}
+                                        disabled={isSavingAuthMethods}
                                     />
                                 </div>
                             </div>
 
                             {/* External Auth: OIDC */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Social
-                                    & OIDC Providers</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                    External Identity (OIDC)
+                                </h4>
                                 {availableOIDC.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').length === 0 ? (
-                                    <p className="text-xs text-muted-foreground italic">No OIDC providers configured for
-                                        this tenant.</p>
+                                    <p className="text-xs text-muted-foreground italic">
+                                        No OIDC providers configured for this tenant.
+                                    </p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {availableOIDC.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').map(provider => (
-                                            <div key={`oidc-${provider.id}`}
-                                                 className="flex items-center justify-between p-3 rounded-lg border bg-muted/10">
-                                                <div className="flex items-center gap-2">
-                                                    <Globe className="h-4 w-4 text-teal-500"/>
-                                                    <span className="text-sm">{provider.name}</span>
+                                        {availableOIDC
+                                            .filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default')
+                                            .map(provider => (
+                                                <div
+                                                    key={`oidc-${provider.id}`}
+                                                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/10"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <Globe className="h-4 w-4 text-teal-500" />
+                                                        <span className="text-sm">{provider.name}</span>
+                                                    </div>
+                                                    <Switch
+                                                        checked={selectedAuthTenant.login_methods.includes(`oidc:${provider.id}`)}
+                                                        onCheckedChange={(c) => toggleLoginMethod(`oidc:${provider.id}`, c)}
+                                                        disabled={isSavingAuthMethods}
+                                                    />
                                                 </div>
-                                                <Switch
-                                                    checked={selectedAuthTenant.login_methods.includes(`oidc:${provider.id}`)}
-                                                    onCheckedChange={(c) => toggleLoginMethod(`oidc:${provider.id}`, c)}
-                                                />
-                                            </div>
-                                        ))}
+                                            ))}
                                     </div>
                                 )}
                             </div>
 
                             {/* External Auth: SAML */}
                             <div className="space-y-3">
-                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Enterprise
-                                    SSO (SAML)</h4>
+                                <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                                    Enterprise SSO (SAML)
+                                </h4>
                                 {availableSAML.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').length === 0 ? (
-                                    <p className="text-xs text-muted-foreground italic">No SAML providers configured for
-                                        this tenant.</p>
+                                    <p className="text-xs text-muted-foreground italic">
+                                        No SAML providers configured for this tenant.
+                                    </p>
                                 ) : (
                                     <div className="space-y-2">
-                                        {availableSAML.filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default').map(provider => (
-                                            <div key={`saml-${provider.id}`}
-                                                 className="flex items-center justify-between p-3 rounded-lg border bg-muted/10">
-                                                <div className="flex items-center gap-2">
-                                                    <KeyRound className="h-4 w-4 text-orange-500"/>
-                                                    <span className="text-sm">{provider.name}</span>
+                                        {availableSAML
+                                            .filter(p => p.tenant_id === selectedAuthTenant.id || p.tenant_id === 'default')
+                                            .map(provider => (
+                                                <div
+                                                    key={`saml-${provider.id}`}
+                                                    className="flex items-center justify-between p-3 rounded-lg border bg-muted/10"
+                                                >
+                                                    <div className="flex items-center gap-2">
+                                                        <KeyRound className="h-4 w-4 text-orange-500" />
+                                                        <span className="text-sm">{provider.name}</span>
+                                                    </div>
+                                                    <Switch
+                                                        checked={selectedAuthTenant.login_methods.includes(`saml:${provider.id}`)}
+                                                        onCheckedChange={(c) => toggleLoginMethod(`saml:${provider.id}`, c)}
+                                                        disabled={isSavingAuthMethods}
+                                                    />
                                                 </div>
-                                                <Switch
-                                                    checked={selectedAuthTenant.login_methods.includes(`saml:${provider.id}`)}
-                                                    onCheckedChange={(c) => toggleLoginMethod(`saml:${provider.id}`, c)}
-                                                />
-                                            </div>
-                                        ))}
+                                            ))}
                                     </div>
                                 )}
                             </div>
@@ -567,14 +731,30 @@ export function Tenants() {
                     )}
 
                     <DialogFooter>
-                        <Button variant="outline" onClick={() => setAuthMethodsOpen(false)}>Cancel</Button>
-                        <Button onClick={handleSaveAuthMethods} className="bg-primary hover:bg-primary/90">Save</Button>
+                        <Button variant="outline" onClick={() => setAuthMethodsOpen(false)} disabled={isSavingAuthMethods}>
+                            Cancel
+                        </Button>
+                        <Button
+                            onClick={handleSaveAuthMethods}
+                            className="bg-primary hover:bg-primary/90"
+                            disabled={isSavingAuthMethods}
+                        >
+                            {isSavingAuthMethods ? 'Saving...' : 'Save'}
+                        </Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    if (isDeleting) {
+                        return;
+                    }
+                    setDeleteDialogOpen(open);
+                }}
+            >
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Tenant</AlertDialogTitle>
@@ -583,8 +763,7 @@ export function Tenants() {
                                 Are you sure you want to delete the
                                 tenant <strong>{selectedTenant?.display_name || selectedTenant?.name}</strong>?
                             </p>
-                            <div
-                                className="bg-destructive/10 text-destructive border border-destructive/20 p-3 rounded-md">
+                            <div className="bg-destructive/10 text-destructive border border-destructive/20 p-3 rounded-md">
                                 <strong>Warning:</strong> Deleting this tenant will permanently remove all associated:
                                 <ul className="list-disc pl-5 mt-1">
                                     <li>OIDC & SAML Clients (Applications)</li>
@@ -596,13 +775,16 @@ export function Tenants() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel data-testid="cancel-delete-tenant-btn">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel data-testid="cancel-delete-tenant-btn" disabled={isDeleting}>
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             data-testid="confirm-delete-tenant-btn"
                             className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting}
                         >
-                            Delete
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

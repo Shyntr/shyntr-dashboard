@@ -1,4 +1,4 @@
-import {useEffect, useState, useCallback} from 'react';
+import {useEffect, useState, useCallback, useRef} from 'react';
 import {Plus, Pencil, Trash2, ShieldAlert, RefreshCw, Network} from 'lucide-react';
 import {Card, CardContent} from '../ui/card';
 import {Button} from '../ui/button';
@@ -31,16 +31,20 @@ import {
     deleteOutboundPolicy
 } from '../../lib/api';
 
+const GLOBAL_TENANT_SENTINEL = 'default';
+
 const TARGET_TYPES = [
     {value: 'webhook_delivery', label: 'Webhook Delivery'},
     {value: 'jwks_fetch', label: 'JWKS Fetch'},
     {value: 'oidc_discovery', label: 'OIDC Discovery'},
+    {value: 'saml_metadata_fetch', label: 'SAML Metadata Fetch'},
+    {value: 'oidc_backchannel_logout', label: 'OIDC Back Channel Logout'},
     {value: 'all', label: 'All Targets (Global)'}
 ];
 
 const defaultPolicy = {
     name: '',
-    tenant_id: 'default',
+    tenant_id: GLOBAL_TENANT_SENTINEL,
     target: 'webhook_delivery',
     enabled: false,
 
@@ -61,6 +65,30 @@ const defaultPolicy = {
     request_timeout_seconds: 10
 };
 
+const normalizePolicyForForm = (policy) => ({
+    ...defaultPolicy,
+    ...policy,
+    tenant_id: policy?.tenant_id || GLOBAL_TENANT_SENTINEL,
+    enabled: policy?.enabled ?? true,
+    block_private_ips: policy?.block_private_ips ?? true,
+    block_loopback_ips: policy?.block_loopback_ips ?? true,
+    block_link_local_ips: policy?.block_link_local_ips ?? true,
+    block_multicast_ips: policy?.block_multicast_ips ?? true,
+    block_localhost_names: policy?.block_localhost_names ?? true,
+    disable_redirects: policy?.disable_redirects ?? true,
+    require_dns_resolve: policy?.require_dns_resolve ?? true,
+    allowed_host_patterns: policy?.allowed_host_patterns || ['*'],
+    allowed_path_patterns: policy?.allowed_path_patterns || ['/*'],
+    allowed_schemes: policy?.allowed_schemes || ['https'],
+    allowed_ports: policy?.allowed_ports?.map(String) || ['443'],
+    max_response_bytes: policy?.max_response_bytes ?? 5242880,
+    request_timeout_seconds: policy?.request_timeout_seconds ?? 10
+});
+
+const normalizeTenantIdForApi = (tenantId) => (
+    tenantId === GLOBAL_TENANT_SENTINEL ? '' : tenantId
+);
+
 export function OutboundPolicies() {
     const [policies, setPolicies] = useState([]);
     const [tenants, setTenants] = useState([]);
@@ -72,6 +100,11 @@ export function OutboundPolicies() {
     const [selectedPolicy, setSelectedPolicy] = useState(null);
     const [formData, setFormData] = useState(defaultPolicy);
     const [isEditing, setIsEditing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const latestPoliciesRequestRef = useRef(0);
+    const activePoliciesRequestRef = useRef(null);
 
     const fetchTenants = useCallback(async () => {
         try {
@@ -83,22 +116,61 @@ export function OutboundPolicies() {
     }, []);
 
     const fetchPolicies = useCallback(async () => {
+        const requestId = latestPoliciesRequestRef.current + 1;
+        latestPoliciesRequestRef.current = requestId;
+
+        if (activePoliciesRequestRef.current) {
+            activePoliciesRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = {id: requestId, cancelled: false};
+        activePoliciesRequestRef.current = requestToken;
+
         setLoading(true);
         try {
             const tenantId = selectedTenantFilter === 'all' ? undefined : selectedTenantFilter;
             const response = await getOutboundPolicies(tenantId);
+
+            if (
+                requestToken.cancelled ||
+                activePoliciesRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             setPolicies(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activePoliciesRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             toast.error(error.message || 'Failed to load outbound policies');
         } finally {
-            setLoading(false);
+            if (
+                !requestToken.cancelled &&
+                activePoliciesRequestRef.current?.id === requestId
+            ) {
+                setLoading(false);
+            }
         }
     }, [selectedTenantFilter]);
 
     useEffect(() => {
         fetchTenants();
+    }, [fetchTenants]);
+
+    useEffect(() => {
         fetchPolicies();
-    }, [fetchTenants, fetchPolicies]);
+
+        return () => {
+            if (activePoliciesRequestRef.current) {
+                activePoliciesRequestRef.current.cancelled = true;
+            }
+        };
+    }, [fetchPolicies]);
 
     const getTenantName = (tenantId) => {
         if (!tenantId) return 'Global / All';
@@ -108,24 +180,13 @@ export function OutboundPolicies() {
 
     const handleCreateClick = () => {
         setFormData(defaultPolicy);
+        setSelectedPolicy(null);
         setIsEditing(false);
         setDialogOpen(true);
     };
 
     const handleEditClick = (policy) => {
-        setFormData({
-        ...defaultPolicy,
-            ...policy,
-        enabled: policy.enabled ?? true,
-        block_private_ips: policy.block_private_ips ?? true,
-        block_loopback_ips: policy.block_loopback_ips ?? true,
-        block_link_local_ips: policy.block_link_local_ips ?? true,
-        block_multicast_ips: policy.block_multicast_ips ?? true,
-        block_localhost_names: policy.block_localhost_names ?? true,
-        disable_redirects: policy.disable_redirects ?? true,
-        require_dns_resolve: policy.require_dns_resolve ?? true,
-            allowed_ports: policy.allowed_ports?.map(String) || ['443']
-        });
+        setFormData(normalizePolicyForForm(policy));
         setSelectedPolicy(policy);
         setIsEditing(true);
         setDialogOpen(true);
@@ -137,13 +198,20 @@ export function OutboundPolicies() {
     };
 
     const handleDelete = async () => {
+        if (isDeleting || !selectedPolicy?.id) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         try {
             await deleteOutboundPolicy(selectedPolicy.id);
             toast.success('Outbound policy deleted successfully');
-            fetchPolicies();
+            await fetchPolicies();
         } catch (error) {
             toast.error(error.message || 'Failed to delete outbound policy');
         } finally {
+            setIsDeleting(false);
             setDeleteDialogOpen(false);
             setSelectedPolicy(null);
         }
@@ -152,6 +220,10 @@ export function OutboundPolicies() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        if (isSubmitting) {
+            return;
+        }
+
         if (!formData.name.trim()) {
             toast.error('Policy name is required');
             return;
@@ -159,14 +231,18 @@ export function OutboundPolicies() {
 
         const cleanData = {
             ...formData,
+            tenant_id: normalizeTenantIdForApi(formData.tenant_id),
             allowed_host_patterns: formData.allowed_host_patterns.filter(p => p.trim()),
             allowed_path_patterns: formData.allowed_path_patterns.filter(p => p.trim()),
+            allowed_schemes: formData.allowed_schemes.filter(s => s.trim()),
             allowed_ports: formData.allowed_ports
                 .filter(p => p.trim() && !isNaN(p))
                 .map(p => parseInt(p, 10)),
             max_response_bytes: parseInt(formData.max_response_bytes, 10) || 5242880,
             request_timeout_seconds: parseInt(formData.request_timeout_seconds, 10) || 10
         };
+
+        setIsSubmitting(true);
 
         try {
             if (isEditing) {
@@ -176,10 +252,13 @@ export function OutboundPolicies() {
                 await createOutboundPolicy(cleanData);
                 toast.success('Outbound policy created successfully');
             }
+
+            await fetchPolicies();
             setDialogOpen(false);
-            fetchPolicies();
         } catch (error) {
             toast.error(error.message || 'Failed to save outbound policy');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -206,7 +285,7 @@ export function OutboundPolicies() {
                         <ShieldAlert className="h-6 w-6 text-destructive"/>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        Manage egress rules and SSRF protections for Shyntr's external network calls.
+                        Manage egress rules and SSRF protections for Shyntr&apos;s external network calls.
                     </p>
                 </div>
 
@@ -226,6 +305,7 @@ export function OutboundPolicies() {
                     <Button
                         onClick={handleCreateClick}
                         className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+                        disabled={isSubmitting}
                     >
                         <Plus className="h-4 w-4 mr-2"/>
                         Create Policy
@@ -269,7 +349,7 @@ export function OutboundPolicies() {
                                 {policies.map((policy) => (
                                     <TableRow key={policy.id} className="hover:bg-muted/30 border-b border-border/40">
                                         <TableCell>
-                                                <span className="font-medium text-foreground">{policy.name}</span>
+                                            <span className="font-medium text-foreground">{policy.name}</span>
                                         </TableCell>
                                         <TableCell>
                                             <Badge
@@ -328,6 +408,9 @@ export function OutboundPolicies() {
                                                     size="icon"
                                                     onClick={() => handleEditClick(policy)}
                                                     className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                    aria-label={`Edit policy ${policy.name}`}
+                                                    title={`Edit policy ${policy.name}`}
+                                                    disabled={isSubmitting || isDeleting}
                                                 >
                                                     <Pencil className="h-4 w-4"/>
                                                 </Button>
@@ -336,6 +419,9 @@ export function OutboundPolicies() {
                                                     size="icon"
                                                     onClick={() => handleDeleteClick(policy)}
                                                     className="h-8 w-8 text-muted-foreground hover:text-destructive"
+                                                    aria-label={`Delete policy ${policy.name}`}
+                                                    title={`Delete policy ${policy.name}`}
+                                                    disabled={isSubmitting || isDeleting}
                                                 >
                                                     <Trash2 className="h-4 w-4"/>
                                                 </Button>
@@ -349,7 +435,12 @@ export function OutboundPolicies() {
                 </Card>
             )}
 
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog open={dialogOpen} onOpenChange={(open) => {
+                if (isSubmitting) {
+                    return;
+                }
+                setDialogOpen(open);
+            }}>
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading flex items-center gap-2">
@@ -371,7 +462,8 @@ export function OutboundPolicies() {
 
                             <TabsContent value="basic" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 gap-4">
-                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                    <div
+                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Enabled</Label>
                                             <p className="text-xs text-muted-foreground">
@@ -380,8 +472,9 @@ export function OutboundPolicies() {
                                         </div>
                                         <Switch
                                             checked={!!formData.enabled}
-                                            onCheckedChange={(checked) => setFormData({ ...formData, enabled: checked })}
+                                            onCheckedChange={(checked) => setFormData({...formData, enabled: checked})}
                                             data-testid="outbound-policy-enabled-toggle"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -391,7 +484,7 @@ export function OutboundPolicies() {
                                             value={formData.name}
                                             onChange={(e) => setFormData({...formData, name: e.target.value})}
                                             placeholder="my-webhook-policy"
-                                            disabled={isEditing}
+                                            disabled={isEditing || isSubmitting}
                                         />
                                     </div>
                                     <div className="space-y-2">
@@ -399,12 +492,14 @@ export function OutboundPolicies() {
                                         <Select
                                             value={formData.tenant_id}
                                             onValueChange={(value) => setFormData({...formData, tenant_id: value})}
+                                            disabled={isSubmitting}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a tenant"/>
                                             </SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="global">Global (All Tenants)</SelectItem>
+                                                <SelectItem value={GLOBAL_TENANT_SENTINEL}>Global (All
+                                                    Tenants)</SelectItem>
                                                 {tenants.map((tenant) => (
                                                     <SelectItem key={tenant.id} value={tenant.id}>
                                                         {tenant.display_name || tenant.name}
@@ -419,6 +514,7 @@ export function OutboundPolicies() {
                                     <Select
                                         value={formData.target}
                                         onValueChange={(value) => setFormData({...formData, target: value})}
+                                        disabled={isSubmitting}
                                     >
                                         <SelectTrigger>
                                             <SelectValue/>
@@ -450,6 +546,7 @@ export function OutboundPolicies() {
                                         <Switch
                                             checked={formData.block_private_ips}
                                             onCheckedChange={(c) => setFormData({...formData, block_private_ips: c})}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                     <div
@@ -463,6 +560,7 @@ export function OutboundPolicies() {
                                         <Switch
                                             checked={formData.block_loopback_ips}
                                             onCheckedChange={(c) => setFormData({...formData, block_loopback_ips: c})}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                     <div
@@ -470,7 +568,7 @@ export function OutboundPolicies() {
                                         <div>
                                             <Label className="text-sm font-medium">Block Localhost Names</Label>
                                             <p className="text-xs text-muted-foreground">
-                                                Prevent routing to 'localhost'
+                                                Prevent routing to &apos;localhost&apos;
                                             </p>
                                         </div>
                                         <Switch
@@ -479,28 +577,41 @@ export function OutboundPolicies() {
                                                 ...formData,
                                                 block_localhost_names: c
                                             })}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                    <div
+                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Block Link-Local IPs</Label>
-                                            <p className="text-xs text-muted-foreground">Block 169.254.0.0/16 and link-local ranges</p>
+                                            <p className="text-xs text-muted-foreground">Block 169.254.0.0/16 and
+                                                link-local ranges</p>
                                         </div>
                                         <Switch
                                             checked={!!formData.block_link_local_ips}
-                                            onCheckedChange={(checked) => setFormData({ ...formData, block_link_local_ips: checked })}
+                                            onCheckedChange={(checked) => setFormData({
+                                                ...formData,
+                                                block_link_local_ips: checked
+                                            })}
                                             data-testid="outbound-policy-block-link-local-ips"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                    <div
+                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Block Multicast IPs</Label>
-                                            <p className="text-xs text-muted-foreground">Prevent multicast/broadcast-style destinations</p>
+                                            <p className="text-xs text-muted-foreground">Prevent
+                                                multicast/broadcast-style destinations</p>
                                         </div>
                                         <Switch
                                             checked={!!formData.block_multicast_ips}
-                                            onCheckedChange={(checked) => setFormData({ ...formData, block_multicast_ips: checked })}
+                                            onCheckedChange={(checked) => setFormData({
+                                                ...formData,
+                                                block_multicast_ips: checked
+                                            })}
                                             data-testid="outbound-policy-block-multicast-ips"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                     <div
@@ -514,17 +625,24 @@ export function OutboundPolicies() {
                                         <Switch
                                             checked={formData.require_dns_resolve}
                                             onCheckedChange={(c) => setFormData({...formData, require_dns_resolve: c})}
+                                            disabled={isSubmitting}
                                         />
                                     </div>
-                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                    <div
+                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Disable Redirects</Label>
-                                            <p className="text-xs text-muted-foreground">Do not follow HTTP redirects</p>
+                                            <p className="text-xs text-muted-foreground">Do not follow HTTP
+                                                redirects</p>
                                         </div>
                                         <Switch
                                             checked={!!formData.disable_redirects}
-                                            onCheckedChange={(checked) => setFormData({ ...formData, disable_redirects: checked })}
+                                            onCheckedChange={(checked) => setFormData({
+                                                ...formData,
+                                                disable_redirects: checked
+                                            })}
                                             data-testid="outbound-policy-disable-redirects"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                 </div>
@@ -542,6 +660,7 @@ export function OutboundPolicies() {
                                                 max_response_bytes: e.target.value
                                             })}
                                             min="0"
+                                            disabled={isSubmitting}
                                         />
                                         <p className="text-xs text-muted-foreground">Limit body size (DoS
                                             protection)</p>
@@ -557,6 +676,7 @@ export function OutboundPolicies() {
                                             })}
                                             min="1"
                                             max="300"
+                                            disabled={isSubmitting}
                                         />
                                         <p className="text-xs text-muted-foreground">Max duration for external call</p>
                                     </div>
@@ -609,21 +729,30 @@ export function OutboundPolicies() {
                                 type="button"
                                 variant="outline"
                                 onClick={() => setDialogOpen(false)}
+                                disabled={isSubmitting}
                             >
                                 Cancel
                             </Button>
                             <Button
                                 type="submit"
                                 className="bg-primary hover:bg-primary/90"
+                                disabled={isSubmitting}
                             >
-                                {isEditing ? 'Update Policy' : 'Create Policy'}
+                                {isSubmitting
+                                    ? (isEditing ? 'Updating...' : 'Creating...')
+                                    : (isEditing ? 'Update Policy' : 'Create Policy')}
                             </Button>
                         </DialogFooter>
                     </form>
                 </DialogContent>
             </Dialog>
 
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialog open={deleteDialogOpen} onOpenChange={(open) => {
+                if (isDeleting) {
+                    return;
+                }
+                setDeleteDialogOpen(open);
+            }}>
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Outbound Policy</AlertDialogTitle>
@@ -635,9 +764,13 @@ export function OutboundPolicies() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                            Delete
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                            onClick={handleDelete}
+                            className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting}
+                        >
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

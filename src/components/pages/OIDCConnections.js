@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Plus, Pencil, Trash2, GlobeLock, RefreshCw, ChevronDown } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -76,28 +76,101 @@ export function OIDCConnections() {
   const [formData, setFormData] = useState(defaultConnection);
   const [isEditing, setIsEditing] = useState(false);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const latestConnectionsRequestRef = useRef(0);
+  const activeConnectionsRequestRef = useRef(null);
+  const latestTenantsRequestRef = useRef(0);
+  const activeTenantsRequestRef = useRef(null);
 
   useEffect(() => {
     fetchConnections();
     fetchTenants();
+
+    return () => {
+      if (activeConnectionsRequestRef.current) {
+        activeConnectionsRequestRef.current.cancelled = true;
+      }
+      if (activeTenantsRequestRef.current) {
+        activeTenantsRequestRef.current.cancelled = true;
+      }
+    };
   }, []);
 
   const fetchConnections = async () => {
+    const requestId = latestConnectionsRequestRef.current + 1;
+    latestConnectionsRequestRef.current = requestId;
+
+    if (activeConnectionsRequestRef.current) {
+      activeConnectionsRequestRef.current.cancelled = true;
+    }
+
+    const requestToken = { id: requestId, cancelled: false };
+    activeConnectionsRequestRef.current = requestToken;
+
+    setLoading(true);
+
     try {
       const response = await getOIDCConnections();
-      setConnections(response.data);
+
+      if (
+        requestToken.cancelled ||
+        activeConnectionsRequestRef.current?.id !== requestId
+      ) {
+        return;
+      }
+
+      setConnections(response.data || []);
     } catch (error) {
+      if (
+        requestToken.cancelled ||
+        activeConnectionsRequestRef.current?.id !== requestId
+      ) {
+        return;
+      }
+
       toast.error(error.message || 'Failed to load OIDC connections');
     } finally {
+      if (
+        !requestToken.cancelled &&
+        activeConnectionsRequestRef.current?.id === requestId
+      ) {
       setLoading(false);
+    }
     }
   };
 
   const fetchTenants = async () => {
+    const requestId = latestTenantsRequestRef.current + 1;
+    latestTenantsRequestRef.current = requestId;
+
+    if (activeTenantsRequestRef.current) {
+      activeTenantsRequestRef.current.cancelled = true;
+    }
+
+    const requestToken = { id: requestId, cancelled: false };
+    activeTenantsRequestRef.current = requestToken;
+
     try {
       const response = await getTenants();
-      setTenants(response.data);
+
+      if (
+        requestToken.cancelled ||
+        activeTenantsRequestRef.current?.id !== requestId
+      ) {
+        return;
+      }
+
+      setTenants(response.data || []);
     } catch (error) {
+      if (
+        requestToken.cancelled ||
+        activeTenantsRequestRef.current?.id !== requestId
+      ) {
+        return;
+      }
+
       console.error('Failed to load tenants:', error);
     }
   };
@@ -108,32 +181,55 @@ export function OIDCConnections() {
   };
 
   const handleCreate = () => {
+    if (isSubmitting || isDeleting) {
+      return;
+    }
+
     setFormData(defaultConnection);
+    setAttributeMappingJson({});
+    setSelectedConnection(null);
     setAdvancedOpen(false);
     setIsEditing(false);
     setDialogOpen(true);
   };
 
   const handleEdit = (connection) => {
+    if (isSubmitting || isDeleting) {
+      return;
+    }
+
     setFormData(connection);
+    setAttributeMappingJson(connection.attribute_mapping || {});
+    setSelectedConnection(connection);
     setAdvancedOpen(!!connection.authorization_endpoint || !!connection.token_endpoint || !!connection.userinfo_endpoint);
     setIsEditing(true);
     setDialogOpen(true);
   };
 
   const handleDeleteClick = (connection) => {
+    if (isSubmitting || isDeleting) {
+      return;
+    }
+
     setSelectedConnection(connection);
     setDeleteDialogOpen(true);
   };
 
   const handleDelete = async () => {
+    if (isDeleting || !selectedConnection?.id || !selectedConnection?.tenant_id) {
+      return;
+    }
+
+    setIsDeleting(true);
+
     try {
       await deleteOIDCConnection(selectedConnection.id, selectedConnection.tenant_id);
       toast.success('OIDC connection deleted successfully');
-      fetchConnections();
+      await fetchConnections();
     } catch (error) {
       toast.error(error.message || 'Failed to delete connection');
     } finally {
+      setIsDeleting(false);
       setDeleteDialogOpen(false);
       setSelectedConnection(null);
     }
@@ -142,6 +238,10 @@ export function OIDCConnections() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     
+    if (isSubmitting) {
+      return;
+    }
+
     if (!formData.name.trim()) {
       toast.error('Provider name is required');
       return;
@@ -157,7 +257,7 @@ export function OIDCConnections() {
 
     let attributeMapping = {};
     try {
-      attributeMapping = Object.assign(attributeMappingJson, {});
+      attributeMapping = Object.assign({}, attributeMappingJson);
     } catch (err) {
       toast.error('Invalid JSON in attribute mapping');
       return;
@@ -168,6 +268,8 @@ export function OIDCConnections() {
       attribute_mapping: attributeMapping
     };
 
+    setIsSubmitting(true);
+
     try {
       if (isEditing) {
         await updateOIDCConnection(formData.id, submitData);
@@ -176,10 +278,13 @@ export function OIDCConnections() {
         await createOIDCConnection(submitData);
         toast.success('OIDC connection created successfully');
       }
+
+      await fetchConnections();
       setDialogOpen(false);
-      fetchConnections();
     } catch (error) {
       toast.error(error.message || 'Failed to save connection');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -211,6 +316,7 @@ export function OIDCConnections() {
           onClick={handleCreate}
           data-testid="create-oidc-connection-btn"
           className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+          disabled={isSubmitting || isDeleting}
         >
           <Plus className="h-4 w-4 mr-2" />
           Add OIDC Provider
@@ -271,7 +377,7 @@ export function OIDCConnections() {
                     <TableCell>
                       <Badge
                           variant="outline"
-                          className='bg-amber-500/15 text-amber-500 border-amber-500/20'
+                        className="bg-amber-500/15 text-amber-500 border-amber-500/20"
                       >
                         {getTenantName(connection.tenant_id)}
                       </Badge>
@@ -310,6 +416,9 @@ export function OIDCConnections() {
                           onClick={() => handleEdit(connection)}
                           data-testid={`edit-oidc-connection-${connection.id}`}
                           className="h-8 w-8"
+                          aria-label={`Edit OIDC provider ${connection.name}`}
+                          title={`Edit OIDC provider ${connection.name}`}
+                          disabled={isSubmitting || isDeleting}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -319,6 +428,9 @@ export function OIDCConnections() {
                           onClick={() => handleDeleteClick(connection)}
                           data-testid={`delete-oidc-connection-${connection.id}`}
                           className="h-8 w-8 hover:text-destructive"
+                          aria-label={`Delete OIDC provider ${connection.name}`}
+                          title={`Delete OIDC provider ${connection.name}`}
+                          disabled={isSubmitting || isDeleting}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -333,7 +445,15 @@ export function OIDCConnections() {
       )}
 
       {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          if (isSubmitting) {
+            return;
+          }
+          setDialogOpen(open);
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto bg-card border-border">
           <DialogHeader>
             <DialogTitle className="font-heading flex items-center gap-2">
@@ -357,6 +477,7 @@ export function OIDCConnections() {
                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                 placeholder="Google Workspace"
                 data-testid="oidc-connection-name-input"
+                disabled={isSubmitting}
               />
             </div>
             <div className="space-y-2">
@@ -364,7 +485,7 @@ export function OIDCConnections() {
               <Select
                   value={formData.tenant_id}
                   onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
-                  // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
+                disabled={isSubmitting}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a tenant" />
@@ -387,6 +508,7 @@ export function OIDCConnections() {
                 onChange={(e) => setFormData({ ...formData, issuer_url: e.target.value })}
                 placeholder="https://accounts.google.com"
                 data-testid="oidc-issuer-input"
+                disabled={isSubmitting}
               />
               <p className="text-xs text-muted-foreground">
                 Used for OIDC Auto-Discovery (/.well-known/openid-configuration)
@@ -402,6 +524,7 @@ export function OIDCConnections() {
                   onChange={(e) => setFormData({ ...formData, client_id: e.target.value })}
                   placeholder="your-client-id.apps.googleusercontent.com"
                   data-testid="oidc-connection-client-id-input"
+                  disabled={isSubmitting}
                 />
               </div>
               <div className="space-y-2">
@@ -425,17 +548,24 @@ export function OIDCConnections() {
                 })}
                 placeholder="openid, email, profile"
                 data-testid="oidc-connection-scopes-input"
+                disabled={isSubmitting}
               />
             </div>
 
             {/* Advanced Endpoint Overrides */}
-            <Collapsible open={advancedOpen} onOpenChange={setAdvancedOpen}>
+            <Collapsible open={advancedOpen} onOpenChange={(open) => {
+              if (isSubmitting) {
+                return;
+              }
+              setAdvancedOpen(open);
+            }}>
               <CollapsibleTrigger asChild>
                 <Button
                   type="button"
                   variant="ghost"
                   className="w-full justify-between"
                   data-testid="advanced-toggle"
+                  disabled={isSubmitting}
                 >
                   <span>Advanced Settings</span>
                   <ChevronDown className={`h-4 w-4 transition-transform ${advancedOpen ? 'rotate-180' : ''}`} />
@@ -456,6 +586,7 @@ export function OIDCConnections() {
                     onChange={(e) => setFormData({ ...formData, authorization_endpoint: e.target.value })}
                     placeholder="https://accounts.google.com/o/oauth2/v2/auth"
                     data-testid="oidc-auth-endpoint-input"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -465,6 +596,7 @@ export function OIDCConnections() {
                     onChange={(e) => setFormData({ ...formData, token_endpoint: e.target.value })}
                     placeholder="https://oauth2.googleapis.com/token"
                     data-testid="oidc-token-endpoint-input"
+                    disabled={isSubmitting}
                   />
                 </div>
                 <div className="space-y-2">
@@ -474,6 +606,7 @@ export function OIDCConnections() {
                     onChange={(e) => setFormData({ ...formData, userinfo_endpoint: e.target.value })}
                     placeholder="https://openidconnect.googleapis.com/v1/userinfo"
                     data-testid="oidc-userinfo-endpoint-input"
+                    disabled={isSubmitting}
                   />
                 </div>
               </CollapsibleContent>
@@ -485,6 +618,7 @@ export function OIDCConnections() {
                 variant="outline" 
                 onClick={() => setDialogOpen(false)}
                 data-testid="cancel-oidc-connection-btn"
+                disabled={isSubmitting}
               >
                 Cancel
               </Button>
@@ -492,8 +626,11 @@ export function OIDCConnections() {
                 type="submit"
                 data-testid="save-oidc-connection-btn"
                 className="bg-primary hover:bg-primary/90"
+                disabled={isSubmitting}
               >
-                {isEditing ? 'Update Provider' : 'Add Provider'}
+                {isSubmitting
+                  ? (isEditing ? 'Updating...' : 'Adding...')
+                  : (isEditing ? 'Update Provider' : 'Add Provider')}
               </Button>
             </DialogFooter>
           </form>
@@ -501,7 +638,15 @@ export function OIDCConnections() {
       </Dialog>
 
       {/* Delete Confirmation Dialog */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+      <AlertDialog
+        open={deleteDialogOpen}
+        onOpenChange={(open) => {
+          if (isDeleting) {
+            return;
+          }
+          setDeleteDialogOpen(open);
+        }}
+      >
         <AlertDialogContent className="bg-card border-border">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete OIDC Provider</AlertDialogTitle>
@@ -511,13 +656,19 @@ export function OIDCConnections() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel data-testid="cancel-delete-oidc-connection-btn">Cancel</AlertDialogCancel>
+            <AlertDialogCancel
+              data-testid="cancel-delete-oidc-connection-btn"
+              disabled={isDeleting}
+            >
+              Cancel
+            </AlertDialogCancel>
             <AlertDialogAction 
               onClick={handleDelete}
               data-testid="confirm-delete-oidc-connection-btn"
               className="bg-destructive hover:bg-destructive/90"
+              disabled={isDeleting}
             >
-              Delete
+              {isDeleting ? 'Deleting...' : 'Delete'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
