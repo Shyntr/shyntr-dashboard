@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 import {Plus, Pencil, Trash2, AppWindow, RefreshCw} from 'lucide-react';
 import {Card, CardContent} from '../ui/card';
 import {Button} from '../ui/button';
@@ -58,17 +58,11 @@ const GRANT_TYPES = [
     'authorization_code',
     'refresh_token',
     'client_credentials',
-    'implicit',
     'urn:ietf:params:oauth:grant-type:jwt-bearer'
 ];
 
 const RESPONSE_TYPES = [
-    'code',
-    'token',
-    'id_token',
-    'code id_token',
-    'code token',
-    'code id_token token'
+    'code'
 ];
 
 const RESPONSE_MODES = [
@@ -78,12 +72,7 @@ const RESPONSE_MODES = [
 ];
 
 const RESPONSE_TYPE_LABELS = {
-    'code': 'Code',
-    'token': 'Token',
-    'id_token': 'ID Token',
-    'code id_token': 'Code + ID Token (Hybrid)',
-    'code token': 'Code + Token (Hybrid)',
-    'code id_token token': 'Code + ID Token + Token (Hybrid)'
+    'code': 'Code'
 };
 
 
@@ -122,39 +111,121 @@ export function OIDCClients() {
     const [selectedClient, setSelectedClient] = useState(null);
     const [formData, setFormData] = useState(defaultClient);
     const [isEditing, setIsEditing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const latestClientsRequestRef = useRef(0);
+    const activeClientsRequestRef = useRef(null);
+    const latestTenantsRequestRef = useRef(0);
+    const activeTenantsRequestRef = useRef(null);
 
     useEffect(() => {
         fetchClients();
         fetchTenants();
+
+        return () => {
+            if (activeClientsRequestRef.current) {
+                activeClientsRequestRef.current.cancelled = true;
+            }
+            if (activeTenantsRequestRef.current) {
+                activeTenantsRequestRef.current.cancelled = true;
+            }
+        };
     }, []);
 
     const fetchClients = async () => {
+        const requestId = latestClientsRequestRef.current + 1;
+        latestClientsRequestRef.current = requestId;
+
+        if (activeClientsRequestRef.current) {
+            activeClientsRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = {id: requestId, cancelled: false};
+        activeClientsRequestRef.current = requestToken;
+
+        setLoading(true);
+
         try {
             const response = await getOIDCClients();
-            setClients(response.data);
+
+            if (
+                requestToken.cancelled ||
+                activeClientsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
+            setClients(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeClientsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             toast.error(error.message || 'Failed to load clients');
         } finally {
-            setLoading(false);
+            if (
+                !requestToken.cancelled &&
+                activeClientsRequestRef.current?.id === requestId
+            ) {
+                setLoading(false);
+            }
         }
     };
 
     const fetchTenants = async () => {
+        const requestId = latestTenantsRequestRef.current + 1;
+        latestTenantsRequestRef.current = requestId;
+
+        if (activeTenantsRequestRef.current) {
+            activeTenantsRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = {id: requestId, cancelled: false};
+        activeTenantsRequestRef.current = requestToken;
+
         try {
             const response = await getTenants();
-            setTenants(response.data);
+
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
+            setTenants(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             console.error('Failed to load tenants:', error);
         }
     };
 
     const handleCreate = () => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setFormData(defaultClient);
+        setSelectedClient(null);
         setIsEditing(false);
         setDialogOpen(true);
     };
 
     const handleEdit = (client) => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setFormData({
             ...client,
             redirect_uris: client.redirect_uris?.length ? client.redirect_uris : [''],
@@ -162,23 +233,35 @@ export function OIDCClients() {
             allowed_cors_origins: client.allowed_cors_origins?.length ? client.allowed_cors_origins : [''],
             audience: client.audience || []
         });
+        setSelectedClient(client);
         setIsEditing(true);
         setDialogOpen(true);
     };
 
     const handleDeleteClick = (client) => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setSelectedClient(client);
         setDeleteDialogOpen(true);
     };
 
     const handleDelete = async () => {
+        if (isDeleting || !selectedClient?.client_id || !selectedClient?.tenant_id) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         try {
             await deleteOIDCClient(selectedClient.client_id, selectedClient.tenant_id);
             toast.success('Client deleted successfully');
-            fetchClients();
+            await fetchClients();
         } catch (error) {
             toast.error(error.message || 'Failed to delete client');
         } finally {
+            setIsDeleting(false);
             setDeleteDialogOpen(false);
             setSelectedClient(null);
         }
@@ -186,6 +269,10 @@ export function OIDCClients() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         if (!formData.client_id.trim()) {
             toast.error('Client ID is required');
@@ -201,6 +288,8 @@ export function OIDCClients() {
             audience: formData.audience.filter(a => a.trim())
         };
 
+        setIsSubmitting(true);
+
         try {
             if (isEditing) {
                 await updateOIDCClient(formData.client_id, cleanData);
@@ -209,10 +298,13 @@ export function OIDCClients() {
                 await createOIDCClient(cleanData);
                 toast.success('Client created successfully');
             }
+
+            await fetchClients();
             setDialogOpen(false);
-            fetchClients();
         } catch (error) {
             toast.error(error.message || 'Failed to save client');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -253,6 +345,7 @@ export function OIDCClients() {
                     onClick={handleCreate}
                     data-testid="create-oidc-client-btn"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                    disabled={isSubmitting || isDeleting}
                 >
                     <Plus className="h-4 w-4 mr-2"/>
                     Create OIDC Client
@@ -360,6 +453,9 @@ export function OIDCClients() {
                                                     onClick={() => handleEdit(client)}
                                                     data-testid={`edit-oidc-client-${client.client_id}`}
                                                     className="h-8 w-8"
+                                                    aria-label={`Edit OIDC client ${client.client_id}`}
+                                                    title={`Edit OIDC client ${client.client_id}`}
+                                                    disabled={isSubmitting || isDeleting}
                                                 >
                                                     <Pencil className="h-4 w-4"/>
                                                 </Button>
@@ -369,6 +465,9 @@ export function OIDCClients() {
                                                     onClick={() => handleDeleteClick(client)}
                                                     data-testid={`delete-oidc-client-${client.client_id}`}
                                                     className="h-8 w-8 hover:text-destructive"
+                                                    aria-label={`Delete OIDC client ${client.client_id}`}
+                                                    title={`Delete OIDC client ${client.client_id}`}
+                                                    disabled={isSubmitting || isDeleting}
                                                 >
                                                     <Trash2 className="h-4 w-4"/>
                                                 </Button>
@@ -383,7 +482,15 @@ export function OIDCClients() {
             )}
 
             {/* Create/Edit Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                    if (isSubmitting) {
+                        return;
+                    }
+                    setDialogOpen(open);
+                }}
+            >
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading flex items-center gap-2">
@@ -415,7 +522,7 @@ export function OIDCClients() {
                                             value={formData.client_id}
                                             onChange={(e) => setFormData({...formData, client_id: e.target.value})}
                                             placeholder="my-react-app"
-                                            disabled={isEditing}
+                                            disabled={isEditing || isSubmitting}
                                             data-testid="oidc-client-id-input"
                                         />
                                     </div>
@@ -427,6 +534,7 @@ export function OIDCClients() {
                                             onChange={(e) => setFormData({...formData, name: e.target.value})}
                                             placeholder="My React Application"
                                             data-testid="oidc-client-name-input"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                 </div>
@@ -436,7 +544,7 @@ export function OIDCClients() {
                                     <Select
                                         value={formData.tenant_id}
                                         onValueChange={(value) => setFormData({...formData, tenant_id: value})}
-                                        // disabled={isEditing}
+                                        disabled={isSubmitting}
                                     >
                                         <SelectTrigger data-testid="oidc-tenant-select">
                                             <SelectValue placeholder="Select a tenant"/>
@@ -454,19 +562,19 @@ export function OIDCClients() {
                                 <div className="space-y-2">
                                     <Label>Client Secret</Label>
                                     <SecretInput
-                                        readOnly={formData.token_endpoint_auth_method === "none"}
+                                        readOnly={formData.token_endpoint_auth_method === 'none'}
                                         value={formData.client_secret}
                                         onChange={(e) => setFormData({...formData, client_secret: e.target.value})}
                                         placeholder="Leave empty to auto-generate"
-                                        showCopy={isEditing && formData.token_endpoint_auth_method !== "none"}
+                                        showCopy={isEditing && formData.token_endpoint_auth_method !== 'none'}
                                         testId="oidc-client-secret-input"
                                     />
-                                    {!isEditing && formData.token_endpoint_auth_method !== "none" && (
+                                    {!isEditing && formData.token_endpoint_auth_method !== 'none' && (
                                         <p className="text-xs text-muted-foreground">
                                             Leave empty to auto-generate a secure secret
                                         </p>
                                     )}
-                                    {formData.token_endpoint_auth_method === "none" && (
+                                    {formData.token_endpoint_auth_method === 'none' && (
                                         <p className="text-xs text-muted-foreground">
                                             Leave empty for public clients
                                         </p>
@@ -474,13 +582,17 @@ export function OIDCClients() {
                                 </div>
 
                                 <div className="space-y-2">
-                                    <Label htmlFor="name">Backchannel Logout URI</Label>
+                                    <Label htmlFor="backchannel-logout-uri-input">Backchannel Logout URI</Label>
                                     <Input
                                         id="backchannel-logout-uri-input"
                                         value={formData.backchannel_logout_uri || ''}
-                                        onChange={(e) => setFormData({...formData, backchannel_logout_uri: e.target.value})}
+                                        onChange={(e) => setFormData({
+                                            ...formData,
+                                            backchannel_logout_uri: e.target.value
+                                        })}
                                         placeholder="https://app.example.com/backchannel/logout"
                                         data-testid="backchannel-logout-uri-input"
+                                        disabled={isSubmitting}
                                     />
                                 </div>
 
@@ -498,7 +610,10 @@ export function OIDCClients() {
                                     <Label>Post Logout Redirect URIs</Label>
                                     <MultiInput
                                         values={formData.post_logout_redirect_uris}
-                                        onChange={(values) => setFormData({...formData, post_logout_redirect_uris: values})}
+                                        onChange={(values) => setFormData({
+                                            ...formData,
+                                            post_logout_redirect_uris: values
+                                        })}
                                         placeholder="https://app.example.com/logout/callback"
                                         testId="oidc-post-logout-redirect-uri"
                                     />
@@ -528,7 +643,11 @@ export function OIDCClients() {
                                                         ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
                                                         : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
                                                 }`}
-                                                onClick={() => toggleArrayItem(formData.grant_types, type, setFormData, 'grant_types')}
+                                                onClick={() => {
+                                                    if (!isSubmitting) {
+                                                        toggleArrayItem(formData.grant_types, type, setFormData, 'grant_types');
+                                                    }
+                                                }}
                                                 data-testid={`grant-type-${type}`}
                                             >
                                                 {type.replace(/urn:ietf:params:oauth:grant-type:/g, '')}
@@ -549,7 +668,11 @@ export function OIDCClients() {
                                                         ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
                                                         : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
                                                 }`}
-                                                onClick={() => toggleArrayItem(formData.response_types, type, setFormData, 'response_types')}
+                                                onClick={() => {
+                                                    if (!isSubmitting) {
+                                                        toggleArrayItem(formData.response_types, type, setFormData, 'response_types');
+                                                    }
+                                                }}
                                                 data-testid={`response-type-${type.replace(/\s+/g, '-')}`}
                                             >
                                                 {RESPONSE_TYPE_LABELS[type] || type}
@@ -569,7 +692,11 @@ export function OIDCClients() {
                                                         ? 'bg-teal-500/20 text-teal-400 border-teal-500/40'
                                                         : 'bg-muted/20 text-muted-foreground hover:bg-muted/40'
                                                 }`}
-                                                onClick={() => toggleArrayItem(formData.response_modes || [], mode, setFormData, 'response_modes')}
+                                                onClick={() => {
+                                                    if (!isSubmitting) {
+                                                        toggleArrayItem(formData.response_modes || [], mode, setFormData, 'response_modes');
+                                                    }
+                                                }}
                                                 data-testid={`response-mode-${mode}`}
                                             >
                                                 {mode}
@@ -587,6 +714,7 @@ export function OIDCClients() {
                                         })}
                                         placeholder="openid, profile, email"
                                         data-testid="oidc-scopes-input"
+                                        disabled={isSubmitting}
                                     />
                                 </div>
 
@@ -600,6 +728,7 @@ export function OIDCClients() {
                                         })}
                                         placeholder="https://api.example.com"
                                         data-testid="oidc-audience-input"
+                                        disabled={isSubmitting}
                                     />
                                 </div>
                             </TabsContent>
@@ -612,10 +741,11 @@ export function OIDCClients() {
                                         onValueChange={(value) => setFormData({
                                             ...formData,
                                             token_endpoint_auth_method: value,
-                                            enforce_pkce: value === "none" ? true : formData.enforce_pkce,
-                                            public: value === "none",
-                                            client_secret: value === "none" ? "" : formData.client_secret,
+                                            enforce_pkce: value === 'none' ? true : formData.enforce_pkce,
+                                            public: value === 'none',
+                                            client_secret: value === 'none' ? '' : formData.client_secret,
                                         })}
+                                        disabled={isSubmitting}
                                     >
                                         <SelectTrigger data-testid="oidc-auth-method-select">
                                             <SelectValue/>
@@ -641,7 +771,7 @@ export function OIDCClients() {
                                         </div>
                                         <Switch
                                             checked={formData.public}
-                                            disabled={formData.token_endpoint_auth_method !== "none"}
+                                            disabled={formData.token_endpoint_auth_method !== 'none' || isSubmitting}
                                             onCheckedChange={(checked) => setFormData({...formData, public: checked})}
                                             data-testid="oidc-public-toggle"
                                         />
@@ -661,6 +791,7 @@ export function OIDCClients() {
                                                 enforce_pkce: checked
                                             })}
                                             data-testid="oidc-pkce-toggle"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                 </div>
@@ -673,6 +804,7 @@ export function OIDCClients() {
                                 variant="outline"
                                 onClick={() => setDialogOpen(false)}
                                 data-testid="cancel-oidc-client-btn"
+                                disabled={isSubmitting}
                             >
                                 Cancel
                             </Button>
@@ -680,8 +812,11 @@ export function OIDCClients() {
                                 type="submit"
                                 data-testid="save-oidc-client-btn"
                                 className="bg-primary hover:bg-primary/90"
+                                disabled={isSubmitting}
                             >
-                                {isEditing ? 'Update Client' : 'Create Client'}
+                                {isSubmitting
+                                    ? (isEditing ? 'Updating...' : 'Creating...')
+                                    : (isEditing ? 'Update Client' : 'Create Client')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -689,7 +824,15 @@ export function OIDCClients() {
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    if (isDeleting) {
+                        return;
+                    }
+                    setDeleteDialogOpen(open);
+                }}
+            >
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete OIDC Client</AlertDialogTitle>
@@ -699,13 +842,16 @@ export function OIDCClients() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel data-testid="cancel-delete-btn">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel data-testid="cancel-delete-btn" disabled={isDeleting}>
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             data-testid="confirm-delete-btn"
                             className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting}
                         >
-                            Delete
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>

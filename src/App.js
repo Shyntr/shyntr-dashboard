@@ -11,6 +11,7 @@ import { Tenants } from "./components/pages/Tenants";
 import { Scopes } from "./components/pages/Scopes";
 import { Settings } from "./components/pages/Settings";
 import { Toaster } from "./components/ui/sonner";
+import {OutboundPolicies} from "@/components/pages/OutboundPolicies";
 
 function App() {
   return (
@@ -27,9 +28,10 @@ function App() {
             <Route path="/connections" element={<Navigate to="/connections/oidc" replace />} />
             <Route path="/connections/oidc" element={<OIDCConnections />} />
             <Route path="/connections/saml" element={<SAMLConnections />} />
-            {/* Tenants & Identity */}
+            {/* Tenants & Identity & Security */}
             <Route path="/tenants" element={<Tenants />} />
             <Route path="/scopes" element={<Scopes />} />
+            <Route path="/outbound-policies" element={<OutboundPolicies />} />
             <Route path="/settings" element={<Settings />} />
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />

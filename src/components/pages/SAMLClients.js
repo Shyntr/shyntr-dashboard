@@ -1,13 +1,13 @@
-import {useEffect, useState} from 'react';
-import {FileCode2, Pencil, Plus, RefreshCw, Trash2} from 'lucide-react';
-import {Card, CardContent} from '../ui/card';
-import {Button} from '../ui/button';
-import {Badge} from '../ui/badge';
-import {Input} from '../ui/input';
-import {Label} from '../ui/label';
-import {Switch} from '../ui/switch';
-import {Textarea} from '../ui/textarea';
-import {Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle} from '../ui/dialog';
+import { useEffect, useRef, useState } from 'react';
+import { FileCode2, Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Switch } from '../ui/switch';
+import { Textarea } from '../ui/textarea';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '../ui/dialog';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -18,15 +18,15 @@ import {
     AlertDialogHeader,
     AlertDialogTitle,
 } from '../ui/alert-dialog';
-import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow,} from '../ui/table';
-import {Tabs, TabsContent, TabsList, TabsTrigger} from '../ui/tabs';
-import {toast} from 'sonner';
-import {EmptyState} from '../shared/EmptyState';
-import {CopyButton} from '../shared/CopyButton';
-import {ProtocolBadge} from '../shared/ProtocolBadge';
-import {createSAMLClient, deleteSAMLClient, getSAMLClients, getTenants, updateSAMLClient} from '../../lib/api';
-import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select";
-import {AttributeMappingEditor} from "@/components/shared/AttributeMappingEditor";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../ui/table';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../ui/tabs';
+import { toast } from 'sonner';
+import { EmptyState } from '../shared/EmptyState';
+import { CopyButton } from '../shared/CopyButton';
+import { ProtocolBadge } from '../shared/ProtocolBadge';
+import { createSAMLClient, deleteSAMLClient, getSAMLClients, getTenants, updateSAMLClient } from '../../lib/api';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { AttributeMappingEditor } from "@/components/shared/AttributeMappingEditor";
 
 const defaultClient = {
     entity_id: '',
@@ -54,28 +54,101 @@ function SAMLClients() {
     const [formData, setFormData] = useState(defaultClient);
     const [attributeMappingJson, setAttributeMappingJson] = useState({});
     const [isEditing, setIsEditing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const latestClientsRequestRef = useRef(0);
+    const activeClientsRequestRef = useRef(null);
+    const latestTenantsRequestRef = useRef(0);
+    const activeTenantsRequestRef = useRef(null);
 
     useEffect(() => {
         fetchClients();
         fetchTenants();
+
+        return () => {
+            if (activeClientsRequestRef.current) {
+                activeClientsRequestRef.current.cancelled = true;
+            }
+            if (activeTenantsRequestRef.current) {
+                activeTenantsRequestRef.current.cancelled = true;
+            }
+        };
     }, []);
 
     const fetchClients = async () => {
+        const requestId = latestClientsRequestRef.current + 1;
+        latestClientsRequestRef.current = requestId;
+
+        if (activeClientsRequestRef.current) {
+            activeClientsRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = { id: requestId, cancelled: false };
+        activeClientsRequestRef.current = requestToken;
+
+        setLoading(true);
+
         try {
             const response = await getSAMLClients();
-            setClients(response.data);
+
+            if (
+                requestToken.cancelled ||
+                activeClientsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
+            setClients(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeClientsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             toast.error(error.message || 'Failed to load SAML clients');
         } finally {
-            setLoading(false);
+            if (
+                !requestToken.cancelled &&
+                activeClientsRequestRef.current?.id === requestId
+            ) {
+                setLoading(false);
+            }
         }
     };
 
     const fetchTenants = async () => {
+        const requestId = latestTenantsRequestRef.current + 1;
+        latestTenantsRequestRef.current = requestId;
+
+        if (activeTenantsRequestRef.current) {
+            activeTenantsRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = { id: requestId, cancelled: false };
+        activeTenantsRequestRef.current = requestToken;
+
         try {
             const response = await getTenants();
-            setTenants(response.data);
+
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
+            setTenants(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             console.error('Failed to load tenants:', error);
         }
     };
@@ -86,30 +159,53 @@ function SAMLClients() {
     };
 
     const handleCreate = () => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setFormData(defaultClient);
+        setAttributeMappingJson({});
+        setSelectedClient(null);
         setIsEditing(false);
         setDialogOpen(true);
     };
 
     const handleEdit = (client) => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setFormData(client);
+        setAttributeMappingJson(client.attribute_mapping || {});
+        setSelectedClient(client);
         setIsEditing(true);
         setDialogOpen(true);
     };
 
     const handleDeleteClick = (client) => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setSelectedClient(client);
         setDeleteDialogOpen(true);
     };
 
     const handleDelete = async () => {
+        if (isDeleting || !selectedClient?.id || !selectedClient?.tenant_id) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         try {
             await deleteSAMLClient(selectedClient.id, selectedClient.tenant_id);
             toast.success('SAML client deleted successfully');
-            fetchClients();
+            await fetchClients();
         } catch (error) {
             toast.error(error.message || 'Failed to delete client');
         } finally {
+            setIsDeleting(false);
             setDeleteDialogOpen(false);
             setSelectedClient(null);
         }
@@ -117,6 +213,10 @@ function SAMLClients() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         if (!formData.metadata_url?.trim()) {
             if (!formData.entity_id.trim()) {
@@ -131,7 +231,7 @@ function SAMLClients() {
 
         let attributeMapping = {};
         try {
-            attributeMapping = Object.assign(attributeMappingJson, {});
+            attributeMapping = Object.assign({}, attributeMappingJson);
         } catch (err) {
             toast.error('Invalid JSON in attribute mapping');
             return;
@@ -142,6 +242,8 @@ function SAMLClients() {
             attribute_mapping: attributeMapping
         };
 
+        setIsSubmitting(true);
+
         try {
             if (isEditing) {
                 await updateSAMLClient(formData.id, submitData);
@@ -150,10 +252,13 @@ function SAMLClients() {
                 await createSAMLClient(submitData);
                 toast.success('SAML client created successfully');
             }
+
+            await fetchClients();
             setDialogOpen(false);
-            fetchClients();
         } catch (error) {
             toast.error(error.message || 'Failed to save client');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -175,7 +280,7 @@ function SAMLClients() {
                         <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
                             SAML Clients
                         </h1>
-                        <ProtocolBadge protocol="saml"/>
+                        <ProtocolBadge protocol="saml" />
                     </div>
                     <p className="text-sm text-muted-foreground">
                         Service Providers (SPs) receiving SAML assertions from Shyntr
@@ -185,8 +290,9 @@ function SAMLClients() {
                     onClick={handleCreate}
                     data-testid="create-saml-client-btn"
                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                    disabled={isSubmitting || isDeleting}
                 >
-                    <Plus className="h-4 w-4 mr-2"/>
+                    <Plus className="h-4 w-4 mr-2" />
                     Create SAML Client
                 </Button>
             </div>
@@ -194,7 +300,7 @@ function SAMLClients() {
             {/* Content */}
             {loading ? (
                 <div className="flex items-center justify-center py-16">
-                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground"/>
+                    <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground" />
                 </div>
             ) : clients.length === 0 ? (
                 <EmptyState
@@ -213,16 +319,11 @@ function SAMLClients() {
                                 <TableRow className="bg-muted/50 hover:bg-muted/50">
                                     <TableHead className="text-xs uppercase tracking-wider">Entity ID</TableHead>
                                     <TableHead className="text-xs uppercase tracking-wider">Tenant</TableHead>
-                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">ACS
-                                        URL</TableHead>
-                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">SLO
-                                        URL</TableHead>
-                                    <TableHead
-                                        className="text-xs uppercase tracking-wider hidden lg:table-cell">Settings</TableHead>
-                                    <TableHead
-                                        className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
-                                    <TableHead
-                                        className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">ACS URL</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden md:table-cell">SLO URL</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Settings</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider hidden lg:table-cell">Created</TableHead>
+                                    <TableHead className="text-xs uppercase tracking-wider text-right">Actions</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
@@ -235,12 +336,10 @@ function SAMLClients() {
                                         <TableCell>
                                             <div className="flex flex-col gap-1">
                                                 <div className="flex items-center gap-2">
-                                                    <code
-                                                        className="text-sm font-mono bg-muted/50 px-2 py-1 rounded max-w-[200px] truncate">
+                                                    <code className="text-sm font-mono bg-muted/50 px-2 py-1 rounded max-w-[200px] truncate">
                                                         {client.entity_id}
                                                     </code>
-                                                    <CopyButton value={client.entity_id}
-                                                                testId={`copy-entity-id-${client.id}`}/>
+                                                    <CopyButton value={client.entity_id} testId={`copy-entity-id-${client.id}`} />
                                                 </div>
                                                 {client.name && (
                                                     <span className="text-xs text-muted-foreground">{client.name}</span>
@@ -250,34 +349,30 @@ function SAMLClients() {
                                         <TableCell>
                                             <Badge
                                                 variant="outline"
-                                                className='bg-amber-500/15 text-amber-500 border-amber-500/20'
+                                                className="bg-amber-500/15 text-amber-500 border-amber-500/20"
                                             >
                                                 {getTenantName(client.tenant_id)}
                                             </Badge>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">
-                                            <code
-                                                className="text-sm font-mono text-muted-foreground max-w-[200px] truncate block">
+                                            <code className="text-sm font-mono text-muted-foreground max-w-[200px] truncate block">
                                                 {client.acs_url}
                                             </code>
                                         </TableCell>
                                         <TableCell className="hidden md:table-cell">
-                                            <code
-                                                className="text-sm font-mono text-muted-foreground max-w-[200px] truncate block">
+                                            <code className="text-sm font-mono text-muted-foreground max-w-[200px] truncate block">
                                                 {client.slo_url}
                                             </code>
                                         </TableCell>
                                         <TableCell className="hidden lg:table-cell">
                                             <div className="flex flex-wrap gap-1">
                                                 {client.sign_response && (
-                                                    <Badge variant="outline"
-                                                           className="text-xs bg-emerald-500/15 text-emerald-500 border-emerald-500/20">
+                                                    <Badge variant="outline" className="text-xs bg-emerald-500/15 text-emerald-500 border-emerald-500/20">
                                                         Signed
                                                     </Badge>
                                                 )}
                                                 {client.encrypt_assertion && (
-                                                    <Badge variant="outline"
-                                                           className="text-xs bg-blue-500/15 text-blue-500 border-blue-500/20">
+                                                    <Badge variant="outline" className="text-xs bg-blue-500/15 text-blue-500 border-blue-500/20">
                                                         Encrypted
                                                     </Badge>
                                                 )}
@@ -294,8 +389,11 @@ function SAMLClients() {
                                                     onClick={() => handleEdit(client)}
                                                     data-testid={`edit-saml-client-${client.id}`}
                                                     className="h-8 w-8"
+                                                    aria-label={`Edit SAML client ${client.name || client.entity_id}`}
+                                                    title={`Edit SAML client ${client.name || client.entity_id}`}
+                                                    disabled={isSubmitting || isDeleting}
                                                 >
-                                                    <Pencil className="h-4 w-4"/>
+                                                    <Pencil className="h-4 w-4" />
                                                 </Button>
                                                 <Button
                                                     variant="ghost"
@@ -303,8 +401,11 @@ function SAMLClients() {
                                                     onClick={() => handleDeleteClick(client)}
                                                     data-testid={`delete-saml-client-${client.id}`}
                                                     className="h-8 w-8 hover:text-destructive"
+                                                    aria-label={`Delete SAML client ${client.name || client.entity_id}`}
+                                                    title={`Delete SAML client ${client.name || client.entity_id}`}
+                                                    disabled={isSubmitting || isDeleting}
                                                 >
-                                                    <Trash2 className="h-4 w-4"/>
+                                                    <Trash2 className="h-4 w-4" />
                                                 </Button>
                                             </div>
                                         </TableCell>
@@ -317,12 +418,20 @@ function SAMLClients() {
             )}
 
             {/* Create/Edit Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                    if (isSubmitting) {
+                        return;
+                    }
+                    setDialogOpen(open);
+                }}
+            >
                 <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading flex items-center gap-2">
                             {isEditing ? 'Edit SAML Client' : 'Create SAML Client'}
-                            <ProtocolBadge protocol="saml"/>
+                            <ProtocolBadge protocol="saml" />
                         </DialogTitle>
                         <DialogDescription>
                             {isEditing
@@ -346,11 +455,11 @@ function SAMLClients() {
                                         <Label>Tenant *</Label>
                                         <Select
                                             value={formData.tenant_id}
-                                            onValueChange={(value) => setFormData({...formData, tenant_id: value})}
-                                            // disabled={isEditing} // Optional: Disable if moving tenants isn't allowed
+                                            onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
+                                            disabled={isSubmitting}
                                         >
                                             <SelectTrigger>
-                                                <SelectValue placeholder="Select a tenant"/>
+                                                <SelectValue placeholder="Select a tenant" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {tenants.map((tenant) => (
@@ -366,47 +475,53 @@ function SAMLClients() {
                                         <Input
                                             id="name"
                                             value={formData.name || ''}
-                                            onChange={(e) => setFormData({...formData, name: e.target.value})}
+                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                             placeholder="Jira Corporate"
                                             data-testid="saml-client-name-input"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="metadata-url">SP Metadata URL</Label>
                                     <Input
                                         id="metadata-url"
                                         value={formData.metadata_url || ''}
-                                        onChange={(e) => setFormData({...formData, metadata_url: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, metadata_url: e.target.value })}
                                         placeholder="https://jira.corp.com/SAML/metadata"
                                         data-testid="saml-metadata-url-input"
+                                        disabled={isSubmitting}
                                     />
-                                    <p className="text-xs text-muted-foreground">Provide a Metadata URL to auto-fill SP
-                                        details. If provided, fields below are optional.</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        Provide a Metadata URL to auto-fill SP details. If provided, fields below are optional.
+                                    </p>
                                 </div>
+
                                 <div className="space-y-2">
                                     <Label htmlFor="entity-id">Entity ID {formData.metadata_url ? '' : '*'}</Label>
                                     <Input
                                         id="entity-id"
                                         value={formData.entity_id}
-                                        onChange={(e) => setFormData({...formData, entity_id: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, entity_id: e.target.value })}
                                         placeholder="https://jira.corp.com/shyntr-app"
                                         data-testid="saml-entity-id-input"
+                                        disabled={isSubmitting}
                                     />
                                     <p className="text-xs text-muted-foreground">Unique URI identifying this SP</p>
                                 </div>
+
                                 <div className="space-y-2">
-                                    <Label htmlFor="acs-url">ACS URL (Assertion Consumer
-                                        Service) {formData.metadata_url ? '' : '*'}</Label>
+                                    <Label htmlFor="acs-url">ACS URL (Assertion Consumer Service) {formData.metadata_url ? '' : '*'}</Label>
                                     <Input
                                         id="acs-url"
                                         value={formData.acs_url}
-                                        onChange={(e) => setFormData({...formData, acs_url: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, acs_url: e.target.value })}
                                         placeholder="https://jira.corp.com/SAML/ACS"
                                         data-testid="saml-acs-url-input"
+                                        disabled={isSubmitting}
                                     />
-                                    <p className="text-xs text-muted-foreground">Where Shyntr sends the SAML
-                                        assertion</p>
+                                    <p className="text-xs text-muted-foreground">Where Shyntr sends the SAML assertion</p>
                                 </div>
 
                                 <div className="space-y-2">
@@ -414,9 +529,10 @@ function SAMLClients() {
                                     <Input
                                         id="slo-url"
                                         value={formData.slo_url}
-                                        onChange={(e) => setFormData({...formData, slo_url: e.target.value})}
+                                        onChange={(e) => setFormData({ ...formData, slo_url: e.target.value })}
                                         placeholder="https://jira.corp.com/SAML/SLO"
                                         data-testid="saml-slo-url-input"
+                                        disabled={isSubmitting}
                                     />
                                     <p className="text-xs text-muted-foreground">Optional: For Single Logout Support</p>
                                 </div>
@@ -426,37 +542,33 @@ function SAMLClients() {
                                         <Label>SP Certificate (Signing)</Label>
                                         <Textarea
                                             value={formData.sp_certificate || ''}
-                                            onChange={(e) => setFormData({...formData, sp_certificate: e.target.value})}
+                                            onChange={(e) => setFormData({ ...formData, sp_certificate: e.target.value })}
                                             placeholder={`-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
                                             rows={5}
                                             className="font-mono text-sm"
+                                            disabled={isSubmitting}
                                         />
-                                        <p className="text-xs text-muted-foreground">Optional: Base SP Certificate
-                                            (PEM)</p>
+                                        <p className="text-xs text-muted-foreground">Optional: Base SP Certificate (PEM)</p>
                                     </div>
 
                                     <div className="space-y-2">
                                         <Label>SP Encryption Certificate</Label>
                                         <Textarea
                                             value={formData.sp_encryption_certificate || ''}
-                                            onChange={(e) => setFormData({
-                                                ...formData,
-                                                sp_encryption_certificate: e.target.value
-                                            })}
+                                            onChange={(e) => setFormData({ ...formData, sp_encryption_certificate: e.target.value })}
                                             placeholder={`-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----`}
                                             rows={5}
                                             className="font-mono text-sm"
+                                            disabled={isSubmitting}
                                         />
-                                        <p className="text-xs text-muted-foreground">Optional: Separate cert for
-                                            encryption</p>
+                                        <p className="text-xs text-muted-foreground">Optional: Separate cert for encryption</p>
                                     </div>
                                 </div>
                             </TabsContent>
 
                             <TabsContent value="security" className="space-y-4 mt-4">
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                    <div
-                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Sign Response</Label>
                                             <p className="text-xs text-muted-foreground">
@@ -465,15 +577,13 @@ function SAMLClients() {
                                         </div>
                                         <Switch
                                             checked={formData.sign_response}
-                                            onCheckedChange={(checked) => setFormData({
-                                                ...formData,
-                                                sign_response: checked
-                                            })}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, sign_response: checked })}
                                             data-testid="saml-sign-response-toggle"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
-                                    <div
-                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Sign Assertion</Label>
                                             <p className="text-xs text-muted-foreground">
@@ -482,15 +592,13 @@ function SAMLClients() {
                                         </div>
                                         <Switch
                                             checked={formData.sign_assertion}
-                                            onCheckedChange={(checked) => setFormData({
-                                                ...formData,
-                                                sign_assertion: checked
-                                            })}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, sign_assertion: checked })}
                                             data-testid="saml-sign-assertion-toggle"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
-                                    <div
-                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Encrypt Assertion</Label>
                                             <p className="text-xs text-muted-foreground">
@@ -499,15 +607,13 @@ function SAMLClients() {
                                         </div>
                                         <Switch
                                             checked={formData.encrypt_assertion}
-                                            onCheckedChange={(checked) => setFormData({
-                                                ...formData,
-                                                encrypt_assertion: checked
-                                            })}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, encrypt_assertion: checked })}
                                             data-testid="saml-encrypt-toggle"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
-                                    <div
-                                        className="flex items-center justify-between rounded-lg border border-border/40 p-4">
+
+                                    <div className="flex items-center justify-between rounded-lg border border-border/40 p-4">
                                         <div>
                                             <Label className="text-sm font-medium">Force AuthN</Label>
                                             <p className="text-xs text-muted-foreground">
@@ -516,11 +622,9 @@ function SAMLClients() {
                                         </div>
                                         <Switch
                                             checked={formData.force_authn}
-                                            onCheckedChange={(checked) => setFormData({
-                                                ...formData,
-                                                force_authn: checked
-                                            })}
+                                            onCheckedChange={(checked) => setFormData({ ...formData, force_authn: checked })}
                                             data-testid="saml-force-authn-toggle"
+                                            disabled={isSubmitting}
                                         />
                                     </div>
                                 </div>
@@ -528,10 +632,12 @@ function SAMLClients() {
 
                             <TabsContent value="mapping" className="space-y-4 mt-4">
                                 <div className="space-y-2">
-                                    <AttributeMappingEditor initialRules={formData.attribute_mapping || {}}
-                                                            onChange={setAttributeMappingJson}
-                                                            subtitle={"Map SAML assertion attributes to standard claims"}
-                                                            tenantId={formData.tenant_id}/>
+                                    <AttributeMappingEditor
+                                        initialRules={formData.attribute_mapping || {}}
+                                        onChange={setAttributeMappingJson}
+                                        subtitle={"Map SAML assertion attributes to standard claims"}
+                                        tenantId={formData.tenant_id}
+                                    />
                                 </div>
                             </TabsContent>
                         </Tabs>
@@ -542,6 +648,7 @@ function SAMLClients() {
                                 variant="outline"
                                 onClick={() => setDialogOpen(false)}
                                 data-testid="cancel-saml-client-btn"
+                                disabled={isSubmitting}
                             >
                                 Cancel
                             </Button>
@@ -549,8 +656,11 @@ function SAMLClients() {
                                 type="submit"
                                 data-testid="save-saml-client-btn"
                                 className="bg-primary hover:bg-primary/90"
+                                disabled={isSubmitting}
                             >
-                                {isEditing ? 'Update Client' : 'Create Client'}
+                                {isSubmitting
+                                    ? (isEditing ? 'Updating...' : 'Creating...')
+                                    : (isEditing ? 'Update Client' : 'Create Client')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -558,24 +668,34 @@ function SAMLClients() {
             </Dialog>
 
             {/* Delete Confirmation Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    if (isDeleting) {
+                        return;
+                    }
+                    setDeleteDialogOpen(open);
+                }}
+            >
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete SAML Client</AlertDialogTitle>
                         <AlertDialogDescription>
-                            Are you sure you want to
-                            delete <strong>{selectedClient?.name || selectedClient?.entity_id}</strong>?
+                            Are you sure you want to delete <strong>{selectedClient?.name || selectedClient?.entity_id}</strong>?
                             This action cannot be undone.
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel data-testid="cancel-delete-saml-client-btn">Cancel</AlertDialogCancel>
+                        <AlertDialogCancel data-testid="cancel-delete-saml-client-btn" disabled={isDeleting}>
+                            Cancel
+                        </AlertDialogCancel>
                         <AlertDialogAction
                             onClick={handleDelete}
                             data-testid="confirm-delete-saml-client-btn"
                             className="bg-destructive hover:bg-destructive/90"
+                            disabled={isDeleting}
                         >
-                            Delete
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -584,4 +704,4 @@ function SAMLClients() {
     );
 }
 
-export default SAMLClients
+export default SAMLClients;

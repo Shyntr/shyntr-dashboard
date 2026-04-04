@@ -1,11 +1,11 @@
-import {useEffect, useState} from 'react';
-import {Plus, Pencil, Trash2, Fingerprint, RefreshCw, ShieldAlert} from 'lucide-react';
-import {Card, CardContent} from '../ui/card';
-import {Button} from '../ui/button';
-import {Badge} from '../ui/badge';
-import {Input} from '../ui/input';
-import {Label} from '../ui/label';
-import {Textarea} from '../ui/textarea';
+import { useEffect, useRef, useState } from 'react';
+import { Plus, Pencil, Trash2, Fingerprint, RefreshCw, ShieldAlert } from 'lucide-react';
+import { Card, CardContent } from '../ui/card';
+import { Button } from '../ui/button';
+import { Badge } from '../ui/badge';
+import { Input } from '../ui/input';
+import { Label } from '../ui/label';
+import { Textarea } from '../ui/textarea';
 import {
     Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle
 } from '../ui/dialog';
@@ -19,8 +19,8 @@ import {
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '../ui/select';
-import {toast} from 'sonner';
-import {EmptyState} from '../shared/EmptyState';
+import { toast } from 'sonner';
+import { EmptyState } from '../shared/EmptyState';
 import { getTenants, getScopes, createScope, updateScope, deleteScope } from '../../lib/api';
 
 const defaultScope = {
@@ -40,9 +40,25 @@ export function Scopes() {
     const [selectedScope, setSelectedScope] = useState(null);
     const [formData, setFormData] = useState(defaultScope);
     const [isEditing, setIsEditing] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    const latestTenantsRequestRef = useRef(0);
+    const activeTenantsRequestRef = useRef(null);
+    const latestScopesRequestRef = useRef(0);
+    const activeScopesRequestRef = useRef(null);
 
     useEffect(() => {
         fetchTenants();
+
+        return () => {
+            if (activeTenantsRequestRef.current) {
+                activeTenantsRequestRef.current.cancelled = true;
+            }
+            if (activeScopesRequestRef.current) {
+                activeScopesRequestRef.current.cancelled = true;
+            }
+        };
     }, []);
 
     useEffect(() => {
@@ -52,58 +68,136 @@ export function Scopes() {
     }, [selectedTenantId]);
 
     const fetchTenants = async () => {
+        const requestId = latestTenantsRequestRef.current + 1;
+        latestTenantsRequestRef.current = requestId;
+
+        if (activeTenantsRequestRef.current) {
+            activeTenantsRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = { id: requestId, cancelled: false };
+        activeTenantsRequestRef.current = requestToken;
+
         try {
             const response = await getTenants();
-            setTenants(response.data);
+
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
+            setTenants(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeTenantsRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             toast.error('Failed to load tenants');
         }
     };
 
     const fetchScopes = async (tenantId) => {
+        const requestId = latestScopesRequestRef.current + 1;
+        latestScopesRequestRef.current = requestId;
+
+        if (activeScopesRequestRef.current) {
+            activeScopesRequestRef.current.cancelled = true;
+        }
+
+        const requestToken = { id: requestId, cancelled: false };
+        activeScopesRequestRef.current = requestToken;
+
         setLoading(true);
+
         try {
             const response = await getScopes(tenantId);
+
+            if (
+                requestToken.cancelled ||
+                activeScopesRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             setScopes(response.data || []);
         } catch (error) {
+            if (
+                requestToken.cancelled ||
+                activeScopesRequestRef.current?.id !== requestId
+            ) {
+                return;
+            }
+
             toast.error(error.message || 'Failed to load scopes');
         } finally {
-            setLoading(false);
+            if (
+                !requestToken.cancelled &&
+                activeScopesRequestRef.current?.id === requestId
+            ) {
+                setLoading(false);
+            }
         }
     };
 
     const handleCreate = () => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setFormData({ ...defaultScope, tenant_id: selectedTenantId });
+        setSelectedScope(null);
         setIsEditing(false);
         setDialogOpen(true);
     };
 
     const handleEdit = (scope) => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         setFormData({
             ...scope,
             claims: scope.claims || []
         });
+        setSelectedScope(scope);
         setIsEditing(true);
         setDialogOpen(true);
     };
 
     const handleDeleteClick = (scope) => {
+        if (isSubmitting || isDeleting) {
+            return;
+        }
+
         if (scope.is_system) {
             toast.error('Security Protocol: System scopes cannot be deleted.');
             return;
         }
+
         setSelectedScope(scope);
         setDeleteDialogOpen(true);
     };
 
     const handleDelete = async () => {
+        if (isDeleting || !selectedScope?.id) {
+            return;
+        }
+
+        setIsDeleting(true);
+
         try {
             await deleteScope(selectedTenantId, selectedScope.id);
             toast.success('Scope deleted successfully');
-            fetchScopes(selectedTenantId);
+            await fetchScopes(selectedTenantId);
         } catch (error) {
             toast.error(error.message || 'Failed to delete scope');
         } finally {
+            setIsDeleting(false);
             setDeleteDialogOpen(false);
             setSelectedScope(null);
         }
@@ -111,6 +205,10 @@ export function Scopes() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (isSubmitting) {
+            return;
+        }
 
         const normalizedName = formData.name.trim().toLowerCase();
 
@@ -136,6 +234,8 @@ export function Scopes() {
                 : formData.claims.split(',').map(s => s.trim()).filter(Boolean)
         };
 
+        setIsSubmitting(true);
+
         try {
             if (isEditing) {
                 await updateScope(selectedTenantId, formData.id, cleanData);
@@ -144,10 +244,13 @@ export function Scopes() {
                 await createScope(selectedTenantId, cleanData);
                 toast.success('Scope created successfully');
             }
+
+            await fetchScopes(selectedTenantId);
             setDialogOpen(false);
-            fetchScopes(selectedTenantId);
         } catch (error) {
             toast.error(error.response?.data?.error || error.message || 'Failed to save scope');
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -181,6 +284,7 @@ export function Scopes() {
                     <Button
                         onClick={handleCreate}
                         className="bg-primary hover:bg-primary/90 shadow-lg shadow-primary/20"
+                        disabled={isSubmitting || isDeleting}
                     >
                         <Plus className="h-4 w-4 mr-2" />
                         Create Scope
@@ -243,27 +347,32 @@ export function Scopes() {
                                             </div>
                                         </TableCell>
                                         <TableCell className="text-right">
-                                            {!scope.is_system && <div className="flex items-center justify-end gap-1">
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleEdit(scope)}
-                                                    className="h-8 w-8 text-muted-foreground hover:text-primary"
-                                                    title="Edit Scope"
-                                                >
-                                                    <Pencil className="h-4 w-4"/>
-                                                </Button>
-                                                <Button
-                                                    variant="ghost"
-                                                    size="icon"
-                                                    onClick={() => handleDeleteClick(scope)}
-                                                    disabled={scope.is_system}
-                                                    title={scope.is_system ? "System scopes cannot be deleted" : "Delete Scope"}
-                                                    className={`h-8 w-8 ${scope.is_system ? 'opacity-30 cursor-not-allowed' : 'text-muted-foreground hover:text-destructive'}`}
-                                                >
-                                                    <Trash2 className="h-4 w-4"/>
-                                                </Button>
-                                            </div>}
+                                            {!scope.is_system && (
+                                                <div className="flex items-center justify-end gap-1">
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleEdit(scope)}
+                                                        className="h-8 w-8 text-muted-foreground hover:text-primary"
+                                                        title={`Edit scope ${scope.name}`}
+                                                        aria-label={`Edit scope ${scope.name}`}
+                                                        disabled={isSubmitting || isDeleting}
+                                                    >
+                                                        <Pencil className="h-4 w-4" />
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="icon"
+                                                        onClick={() => handleDeleteClick(scope)}
+                                                        disabled={scope.is_system || isSubmitting || isDeleting}
+                                                        title={scope.is_system ? "System scopes cannot be deleted" : `Delete scope ${scope.name}`}
+                                                        aria-label={scope.is_system ? "System scope cannot be deleted" : `Delete scope ${scope.name}`}
+                                                        className={`h-8 w-8 ${scope.is_system ? 'opacity-30 cursor-not-allowed' : 'text-muted-foreground hover:text-destructive'}`}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                </div>
+                                            )}
                                         </TableCell>
                                     </TableRow>
                                 ))}
@@ -274,7 +383,15 @@ export function Scopes() {
             )}
 
             {/* Create/Edit Dialog */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <Dialog
+                open={dialogOpen}
+                onOpenChange={(open) => {
+                    if (isSubmitting) {
+                        return;
+                    }
+                    setDialogOpen(open);
+                }}
+            >
                 <DialogContent className="max-w-lg bg-card border-border">
                     <DialogHeader>
                         <DialogTitle className="font-heading">
@@ -296,7 +413,7 @@ export function Scopes() {
                                 value={formData.name}
                                 onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                                 placeholder="e.g. hr_data"
-                                disabled={isEditing && formData.is_system}
+                                disabled={isEditing && formData.is_system || isSubmitting}
                                 className={isEditing && formData.is_system ? "bg-muted/50 text-muted-foreground" : ""}
                             />
                             {isEditing && formData.is_system && (
@@ -314,6 +431,7 @@ export function Scopes() {
                                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                                 placeholder="Allows the application to read your HR data."
                                 rows={2}
+                                disabled={isSubmitting}
                             />
                         </div>
 
@@ -323,6 +441,7 @@ export function Scopes() {
                                 value={Array.isArray(formData.claims) ? formData.claims.join(', ') : formData.claims}
                                 onChange={(e) => setFormData({ ...formData, claims: e.target.value })}
                                 placeholder="department, title, salary_band"
+                                disabled={isSubmitting}
                             />
                             <p className="text-[10px] text-primary/80 italic">
                                 Claims listed here will be released to the client when this scope is requested.
@@ -330,11 +449,13 @@ export function Scopes() {
                         </div>
 
                         <DialogFooter className="mt-6">
-                            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={isSubmitting}>
                                 Cancel
                             </Button>
-                            <Button type="submit" className="bg-primary hover:bg-primary/90">
-                                {isEditing ? 'Update Scope' : 'Create Scope'}
+                            <Button type="submit" className="bg-primary hover:bg-primary/90" disabled={isSubmitting}>
+                                {isSubmitting
+                                    ? (isEditing ? 'Updating...' : 'Creating...')
+                                    : (isEditing ? 'Update Scope' : 'Create Scope')}
                             </Button>
                         </DialogFooter>
                     </form>
@@ -342,7 +463,15 @@ export function Scopes() {
             </Dialog>
 
             {/* Delete Dialog */}
-            <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+            <AlertDialog
+                open={deleteDialogOpen}
+                onOpenChange={(open) => {
+                    if (isDeleting) {
+                        return;
+                    }
+                    setDeleteDialogOpen(open);
+                }}
+            >
                 <AlertDialogContent className="bg-card border-border">
                     <AlertDialogHeader>
                         <AlertDialogTitle>Delete Scope</AlertDialogTitle>
@@ -352,9 +481,9 @@ export function Scopes() {
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
-                            Delete
+                        <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90" disabled={isDeleting}>
+                            {isDeleting ? 'Deleting...' : 'Delete'}
                         </AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
