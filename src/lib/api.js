@@ -24,7 +24,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.detail || error.message || 'An error occurred';
+    const responseData = error.response?.data;
+    const message =
+      responseData?.detail ||
+      responseData?.user_message ||
+      responseData?.message ||
+      responseData?.error ||
+      error.message ||
+      'An error occurred';
     console.error(`[API Error] ${message}`);
     return Promise.reject({ message, status: error.response?.status });
   }
@@ -62,6 +69,14 @@ export const getOIDCConnections = () => api.get('/oidc-connections');
 export const createOIDCConnection = (data) => api.post('/oidc-connections', data);
 export const updateOIDCConnection = (id, data) => api.put(`/oidc-connections/${id}`, data);
 export const deleteOIDCConnection = (id, tenantId) => api.delete(`/oidc-connections/${tenantId}/${id}`);
+
+// LDAP Connections (Directory Providers)
+export const getLDAPConnections = () => api.get('/ldap-connections');
+export const getLDAPConnection = (tenantId, id) => api.get(`/ldap-connections/${tenantId}/${id}`);
+export const createLDAPConnection = (data) => api.post('/ldap-connections', data);
+export const updateLDAPConnection = (tenantId, id, data) => api.put(`/ldap-connections/${tenantId}/${id}`, data);
+export const deleteLDAPConnection = (tenantId, id) => api.delete(`/ldap-connections/${tenantId}/${id}`);
+export const testLDAPConnection = (tenantId, id) => api.post(`/ldap-connections/${tenantId}/${id}/test`);
 
 // Scopes
 export const getScopes = (tenantId) => api.get(`/tenants/${tenantId}/scopes`);

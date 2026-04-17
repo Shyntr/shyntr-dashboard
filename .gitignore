@@ -25,3 +25,9 @@ yarn-error.log*
 shyntr_dashboard.sh
 .idea
 *.txt
+
+# Repository-local Codex files are versioned on purpose.
+# Ignore only local throwaway variants.
+.codex/*.local.toml
+.codex/*.bak
+.codex/*.tmp

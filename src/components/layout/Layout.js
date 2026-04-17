@@ -35,6 +35,7 @@ const navigation = [
         children: [
             {name: 'OIDC Providers', href: '/connections/oidc', protocol: 'oidc'},
             {name: 'SAML Providers', href: '/connections/saml', protocol: 'saml'},
+            {name: 'LDAP Providers', href: '/connections/ldap', protocol: 'ldap'},
         ]
     },
     {name: 'Tenants', href: '/tenants', icon: Building2},
@@ -98,7 +99,11 @@ function NavItem({item, mobile, onClose}) {
                             >
                 <span className={cn(
                     'w-2 h-2 rounded-full',
-                    child.protocol === 'oidc' ? 'bg-teal-500' : 'bg-orange-500'
+                    child.protocol === 'oidc'
+                        ? 'bg-teal-500'
+                        : child.protocol === 'saml'
+                            ? 'bg-orange-500'
+                            : 'bg-sky-500'
                 )}/>
                                 {child.name}
                             </Link>

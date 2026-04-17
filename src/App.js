@@ -7,6 +7,7 @@ import { OIDCClients } from "./components/pages/OIDCClients";
 import SAMLClients from "./components/pages/SAMLClients";
 import { SAMLConnections } from "./components/pages/SAMLConnections";
 import { OIDCConnections } from "./components/pages/OIDCConnections";
+import { LDAPConnections } from "./components/pages/LDAPConnections";
 import { Tenants } from "./components/pages/Tenants";
 import { Scopes } from "./components/pages/Scopes";
 import { Settings } from "./components/pages/Settings";
@@ -28,6 +29,7 @@ function App() {
             <Route path="/connections" element={<Navigate to="/connections/oidc" replace />} />
             <Route path="/connections/oidc" element={<OIDCConnections />} />
             <Route path="/connections/saml" element={<SAMLConnections />} />
+            <Route path="/connections/ldap" element={<LDAPConnections />} />
             {/* Tenants & Identity & Security */}
             <Route path="/tenants" element={<Tenants />} />
             <Route path="/scopes" element={<Scopes />} />
