@@ -12,7 +12,13 @@ import {
     RefreshCw,
     Server,
     BarChart3,
-    AlertCircle
+    AlertCircle,
+    ShieldAlert,
+    ListFilter,
+    Fingerprint,
+    Shuffle,
+    ArrowRightLeft,
+    Repeat
 } from 'lucide-react';
 import {Card, CardContent, CardHeader, CardTitle} from '../ui/card';
 import {Button} from '../ui/button';
@@ -21,7 +27,10 @@ import {
     getLDAPConnections,
     getOIDCConnections,
     getSAMLConnections,
-    getDashboardAuthActivity
+    getDashboardAuthActivity,
+    getDashboardAuthFailures,
+    getDashboardRoutingInsights,
+    getHealthSummary
 } from '../../lib/api';
 import {toast} from 'sonner';
 import {
@@ -35,6 +44,12 @@ import {
     Legend,
     Cell
 } from 'recharts';
+import {
+    Tooltip as UITooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from "@/components/ui/tooltip";
 import {ActivityTypeBadge} from "@/components/shared/ActivityTypeBadge";
 import {
     Select,
@@ -78,6 +93,41 @@ const DEFAULT_AUTH_ACTIVITY = {
         success: 0,
         failure: 0
     }
+};
+
+const DEFAULT_AUTH_FAILURES = {
+    totals: { failure: 0 },
+    reasons: [],
+    protocols: {
+        oidc: { failure: 0, top_reason: 'none' },
+        saml: { failure: 0, top_reason: 'none' },
+        ldap: { failure: 0, top_reason: 'none' }
+    }
+};
+
+const DEFAULT_ROUTING_INSIGHTS = {
+    transitions: [],
+    totals: {
+        routed: 0,
+        same_protocol: 0
+    }
+};
+
+const DEFAULT_HEALTH_SUMMARY = {
+    status: 'ok',
+    checks: {
+        database: 'ok',
+        signing_keys: 'ok',
+        migrations: 'ok'
+    }
+};
+
+const normalizeReason = (key) => {
+    if (!key || key === 'none') return 'N/A';
+    return key
+        .split('_')
+        .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
 };
 
 function StatCard({icon: Icon, title, value, description, color, onClick}) {
@@ -181,25 +231,40 @@ export function Dashboard() {
     const [stats, setStats] = useState(DEFAULT_STATS);
     const [connectionCounts, setConnectionCounts] = useState(DEFAULT_CONNECTION_COUNTS);
     const [authActivity, setAuthActivity] = useState(DEFAULT_AUTH_ACTIVITY);
+    const [authFailures, setAuthFailures] = useState(DEFAULT_AUTH_FAILURES);
+    const [routingInsights, setRoutingInsights] = useState(DEFAULT_ROUTING_INSIGHTS);
+    const [healthSummary, setHealthSummary] = useState(DEFAULT_HEALTH_SUMMARY);
     const [range, setRange] = useState('24h');
     const [loading, setLoading] = useState(true);
     const [activityLoading, setActivityLoading] = useState(false);
     const [activityError, setActivityError] = useState(null);
+    const [failuresLoading, setFailuresLoading] = useState(false);
+    const [failuresError, setFailuresError] = useState(null);
+    const [routingLoading, setRoutingLoading] = useState(false);
+    const [routingError, setRoutingError] = useState(null);
 
     const fetchDashboardData = useCallback(async () => {
         setLoading(true);
 
-        const [statsResult, oidcResult, samlResult, ldapResult] = await Promise.allSettled([
+        const [statsResult, oidcResult, samlResult, ldapResult, healthResult] = await Promise.allSettled([
             getDashboardStats(),
             getOIDCConnections(),
             getSAMLConnections(),
-            getLDAPConnections()
+            getLDAPConnections(),
+            getHealthSummary()
         ]);
 
         if (statsResult.status === 'fulfilled') {
             setStats(statsResult.value.data || DEFAULT_STATS);
         } else {
             toast.error(statsResult.reason?.message || 'Failed to load dashboard stats');
+        }
+
+        if (healthResult.status === 'fulfilled') {
+            setHealthSummary(healthResult.value.data || DEFAULT_HEALTH_SUMMARY);
+        } else {
+            console.error('Failed to load health summary:', healthResult.reason);
+            // We don't toast here as it's a secondary check
         }
 
         const nextConnectionCounts = {
@@ -239,6 +304,34 @@ export function Dashboard() {
         }
     }, [range]);
 
+    const fetchAuthFailures = useCallback(async () => {
+        setFailuresLoading(true);
+        setFailuresError(null);
+        try {
+            const response = await getDashboardAuthFailures(range);
+            setAuthFailures(response.data || DEFAULT_AUTH_FAILURES);
+        } catch (error) {
+            console.error('Failed to fetch auth failures:', error);
+            setFailuresError(error.message || 'Failed to load failure metrics');
+        } finally {
+            setFailuresLoading(false);
+        }
+    }, [range]);
+
+    const fetchRoutingInsights = useCallback(async () => {
+        setRoutingLoading(true);
+        setRoutingError(null);
+        try {
+            const response = await getDashboardRoutingInsights(range);
+            setRoutingInsights(response.data || DEFAULT_ROUTING_INSIGHTS);
+        } catch (error) {
+            console.error('Failed to fetch routing insights:', error);
+            setRoutingError(error.message || 'Failed to load routing insights');
+        } finally {
+            setRoutingLoading(false);
+        }
+    }, [range]);
+
     useEffect(() => {
         fetchDashboardData();
     }, [fetchDashboardData]);
@@ -246,6 +339,14 @@ export function Dashboard() {
     useEffect(() => {
         fetchAuthActivity();
     }, [fetchAuthActivity]);
+
+    useEffect(() => {
+        fetchAuthFailures();
+    }, [fetchAuthFailures]);
+
+    useEffect(() => {
+        fetchRoutingInsights();
+    }, [fetchRoutingInsights]);
 
     const authActivityData = useMemo(() => {
         if (!authActivity?.protocols) return [];
@@ -275,8 +376,22 @@ export function Dashboard() {
         return authActivityData.some(d => d.success > 0 || d.failure > 0);
     }, [authActivityData]);
 
+    const highestReason = useMemo(() => {
+        if (!authFailures?.reasons?.length) return 'none';
+        return authFailures.reasons.reduce((prev, current) => (prev.count > current.count) ? prev : current).key;
+    }, [authFailures]);
+
     const totalClients = stats.total_oidc_clients + stats.total_saml_clients;
     const totalConnections = connectionCounts.oidc + connectionCounts.saml + connectionCounts.ldap;
+
+    const getHealthColor = (status) => {
+        switch (status?.toLowerCase()) {
+            case 'ok': return 'bg-emerald-600';
+            case 'degraded': return 'bg-orange-500';
+            case 'error': return 'bg-red-600';
+            default: return 'bg-emerald-600';
+        }
+    };
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
@@ -344,13 +459,39 @@ export function Dashboard() {
                     color="bg-emerald-600"
                     onClick={() => navigate('/tenants')}
                 />
-                <StatCard
-                    icon={Shield}
-                    title="Health"
-                    value="OK"
-                    description="All systems operational"
-                    color="bg-teal-600"
-                />
+                <TooltipProvider delayDuration={0}>
+                    <UITooltip>
+                        <TooltipTrigger asChild>
+                            <div>
+                                <StatCard
+                                    icon={Shield}
+                                    title="Health"
+                                    value={healthSummary.status?.toUpperCase() || 'OK'}
+                                    description={healthSummary.status === 'ok' ? "All systems operational" : "System issues detected"}
+                                    color={getHealthColor(healthSummary.status)}
+                                />
+                            </div>
+                        </TooltipTrigger>
+                        <TooltipContent className="bg-card/95 backdrop-blur-xl border border-border/40 p-3 shadow-xl text-foreground">
+                            <div className="space-y-2 min-w-[140px]">
+                                <p className="font-medium text-xs border-b border-border/40 pb-1.5 mb-1.5 uppercase tracking-wider">Health Checks</p>
+                                {Object.entries(healthSummary.checks || {}).map(([key, val]) => (
+                                    <div key={key} className="flex items-center justify-between gap-4 text-[10px]">
+                                        <span className="text-muted-foreground capitalize">{key.replace('_', ' ')}:</span>
+                                        <span className={val === 'ok' ? "text-emerald-500 font-bold" : "text-red-500 font-bold"}>
+                                            {val?.toUpperCase()}
+                                        </span>
+                                    </div>
+                                ))}
+                                {healthSummary.generated_at && (
+                                    <p className="text-[8px] text-muted-foreground italic border-t border-border/20 pt-1 mt-1">
+                                        Last checked: {new Date(healthSummary.generated_at).toLocaleTimeString()}
+                                    </p>
+                                )}
+                            </div>
+                        </TooltipContent>
+                    </UITooltip>
+                </TooltipProvider>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -490,6 +631,212 @@ export function Dashboard() {
                         <ProtocolCountRow label="OIDC Providers" value={connectionCounts.oidc} color={COLORS.oidc}/>
                         <ProtocolCountRow label="SAML Providers" value={connectionCounts.saml} color={COLORS.saml}/>
                         <ProtocolCountRow label="LDAP Providers" value={connectionCounts.ldap} color={COLORS.ldap}/>
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Failure Intelligence Section */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-card/40 backdrop-blur-sm border-border/40 hover:border-primary/20 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-[0.1em]">
+                            <ShieldAlert className="h-3.5 w-3.5 text-primary" />
+                            Failure Summary
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {failuresLoading ? (
+                            <div className="h-20 flex items-center justify-center">
+                                <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground/30"/>
+                            </div>
+                        ) : failuresError ? (
+                            <div className="h-20 flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-destructive/50" />
+                                <Button variant="ghost" size="sm" onClick={fetchAuthFailures} className="h-6 text-[10px]">Retry</Button>
+                            </div>
+                        ) : (
+                            <div className="flex flex-col gap-1">
+                                <div className="flex items-baseline gap-2">
+                                    <span className="text-3xl font-bold font-heading text-destructive leading-none">
+                                        {authFailures.totals?.failure || 0}
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground">Failures</span>
+                                </div>
+                                <div className="mt-3 pt-3 border-t border-border/20">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider mb-1">Top Overall Reason</p>
+                                    <p className="text-xs font-semibold text-foreground truncate">{normalizeReason(highestReason)}</p>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="bg-card/40 backdrop-blur-sm border-border/40 hover:border-primary/20 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-[0.1em]">
+                            <ListFilter className="h-3.5 w-3.5 text-primary" />
+                            Top Root Causes
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {failuresLoading ? (
+                            <div className="h-20 flex items-center justify-center">
+                                <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground/30"/>
+                            </div>
+                        ) : failuresError ? (
+                            <div className="h-20 flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-destructive/50" />
+                                <Button variant="ghost" size="sm" onClick={fetchAuthFailures} className="h-6 text-[10px]">Retry</Button>
+                            </div>
+                        ) : authFailures.reasons?.length > 0 ? (
+                            <div className="space-y-2.5">
+                                {authFailures.reasons.slice(0, 3).map((r, i) => (
+                                    <div key={i} className="flex items-center justify-between gap-3">
+                                        <span className="text-xs text-muted-foreground truncate flex-1">{normalizeReason(r.key)}</span>
+                                        <span className="text-xs font-bold text-foreground bg-muted/30 px-1.5 rounded min-w-[20px] text-center">{r.count}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="h-20 flex items-center justify-center text-[10px] text-muted-foreground italic">
+                                No authentication failures
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="lg:col-span-2 bg-card/40 backdrop-blur-sm border-border/40 hover:border-primary/20 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-[0.1em]">
+                            <Fingerprint className="h-3.5 w-3.5 text-primary" />
+                            Protocol Impact
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {failuresLoading ? (
+                            <div className="h-20 flex items-center justify-center">
+                                <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground/30"/>
+                            </div>
+                        ) : failuresError ? (
+                            <div className="h-20 flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-destructive/50" />
+                                <Button variant="ghost" size="sm" onClick={fetchAuthFailures} className="h-6 text-[10px]">Retry</Button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-3 gap-4 h-full">
+                                {['oidc', 'saml', 'ldap'].map(p => (
+                                    <div key={p} className="flex flex-col justify-between border-r last:border-0 border-border/10 pr-4 last:pr-0">
+                                        <div>
+                                            <div className="flex items-center gap-1.5 mb-1">
+                                                <div className="w-1.5 h-1.5 rounded-full" style={{backgroundColor: COLORS[p]}} />
+                                                <span className="text-[10px] font-bold uppercase tracking-wider">{p}</span>
+                                            </div>
+                                            <p className="text-xl font-bold text-foreground mb-2">
+                                                {authFailures.protocols?.[p]?.failure || 0}
+                                            </p>
+                                        </div>
+                                        <div>
+                                            <p className="text-[9px] text-muted-foreground uppercase tracking-tight leading-tight">Top Reason</p>
+                                            <p className="text-[10px] font-medium text-foreground truncate" title={normalizeReason(authFailures.protocols?.[p]?.top_reason)}>
+                                                {normalizeReason(authFailures.protocols?.[p]?.top_reason)}
+                                            </p>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+            </div>
+
+            {/* Routing Insights Section */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <Card className="bg-card/40 backdrop-blur-sm border-border/40 hover:border-primary/20 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-[0.1em]">
+                            <Shuffle className="h-3.5 w-3.5 text-primary" />
+                            Routing Summary
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {routingLoading ? (
+                            <div className="h-24 flex items-center justify-center">
+                                <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground/30"/>
+                            </div>
+                        ) : routingError ? (
+                            <div className="h-24 flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-destructive/50" />
+                                <Button variant="ghost" size="sm" onClick={fetchRoutingInsights} className="h-6 text-[10px]">Retry</Button>
+                            </div>
+                        ) : (
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-1">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Routed Auth Flows</p>
+                                    <p className="text-2xl font-bold font-heading text-foreground">{routingInsights.totals?.routed || 0}</p>
+                                    <div className="flex items-center gap-1">
+                                        <ArrowRightLeft className="h-3 w-3 text-primary/50" />
+                                        <span className="text-[9px] text-muted-foreground italic">Across protocols</span>
+                                    </div>
+                                </div>
+                                <div className="space-y-1 border-l border-border/20 pl-4">
+                                    <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Same-Protocol</p>
+                                    <p className="text-2xl font-bold font-heading text-foreground">{routingInsights.totals?.same_protocol || 0}</p>
+                                    <div className="flex items-center gap-1">
+                                        <Repeat className="h-3 w-3 text-teal-500/50" />
+                                        <span className="text-[9px] text-muted-foreground italic">Direct pass</span>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </CardContent>
+                </Card>
+
+                <Card className="md:col-span-2 bg-card/40 backdrop-blur-sm border-border/40 hover:border-primary/20 transition-all duration-300">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-[10px] font-bold flex items-center gap-2 text-muted-foreground uppercase tracking-[0.1em]">
+                            <ArrowRightLeft className="h-3.5 w-3.5 text-primary" />
+                            Protocol Transitions
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {routingLoading ? (
+                            <div className="h-24 flex items-center justify-center">
+                                <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground/30"/>
+                            </div>
+                        ) : routingError ? (
+                            <div className="h-24 flex flex-col items-center justify-center gap-2">
+                                <AlertCircle className="h-4 w-4 text-destructive/50" />
+                                <Button variant="ghost" size="sm" onClick={fetchRoutingInsights} className="h-6 text-[10px]">Retry</Button>
+                            </div>
+                        ) : routingInsights.transitions?.length > 0 ? (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-3">
+                                {[...routingInsights.transitions]
+                                    .sort((a, b) => b.count - a.count)
+                                    .slice(0, 6)
+                                    .map((t, i) => (
+                                        <div key={i} className="flex items-center justify-between group">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[10px] font-bold uppercase w-8 text-primary/80">{t.from}</span>
+                                                <ArrowRight className="h-3 w-3 text-muted-foreground/40" />
+                                                <span className="text-[10px] font-bold uppercase w-8 text-foreground">{t.to}</span>
+                                            </div>
+                                            <div className="flex items-center gap-3 flex-1 ml-4">
+                                                <div className="h-1.5 flex-1 bg-muted/20 rounded-full overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-primary/40 group-hover:bg-primary/60 transition-all duration-500" 
+                                                        style={{ width: `${Math.min(100, (t.count / (routingInsights.totals?.routed || 1)) * 100)}%` }}
+                                                    />
+                                                </div>
+                                                <span className="text-xs font-mono font-bold w-6 text-right">{t.count}</span>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                        ) : (
+                            <div className="h-24 flex items-center justify-center text-[10px] text-muted-foreground italic">
+                                No routing activity in the selected range
+                            </div>
+                        )}
                     </CardContent>
                 </Card>
             </div>

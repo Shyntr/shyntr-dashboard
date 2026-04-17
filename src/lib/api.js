@@ -40,6 +40,9 @@ api.interceptors.response.use(
 // Dashboard
 export const getDashboardStats = () => api.get('/dashboard/stats');
 export const getDashboardAuthActivity = (range = '24h') => api.get('/dashboard/auth-activity', { params: { range } });
+export const getDashboardAuthFailures = (range = '24h') => api.get('/dashboard/auth-failures', { params: { range } });
+export const getDashboardRoutingInsights = (range = '24h') => api.get('/dashboard/routing-insights', { params: { range } });
+export const getHealthSummary = () => api.get('/dashboard/health-summary');
 
 // Tenants
 export const getTenants = () => api.get('/tenants');
