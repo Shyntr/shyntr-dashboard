@@ -5,47 +5,52 @@ import {
     Link2,
     Building2,
     Shield,
-    TrendingUp,
     Clock,
     ArrowRight,
     GlobeLock,
     KeyRound,
-    RefreshCw
+    RefreshCw,
+    Server,
+    BarChart3
 } from 'lucide-react';
 import {Card, CardContent, CardHeader, CardTitle} from '../ui/card';
 import {Button} from '../ui/button';
-import {ProtocolBadge} from '../shared/ProtocolBadge';
-import {getDashboardStats} from '../../lib/api';
+import {getDashboardStats, getLDAPConnections, getOIDCConnections, getSAMLConnections} from '../../lib/api';
 import {toast} from 'sonner';
 import {
-    AreaChart,
-    Area,
+    BarChart,
+    Bar,
     XAxis,
     YAxis,
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
-    BarChart,
-    Bar,
     Cell
 } from 'recharts';
 import {ActivityTypeBadge} from "@/components/shared/ActivityTypeBadge";
 
 const COLORS = {
     oidc: '#14b8a6',
-    saml: '#f97316'
+    saml: '#f97316',
+    ldap: '#0ea5e9'
 };
 
-// Temporary demo chart data until backend traffic aggregation is available.
-const demoActivityData = [
-    {name: 'Mon', oidc: 4, saml: 2},
-    {name: 'Tue', oidc: 3, saml: 1},
-    {name: 'Wed', oidc: 5, saml: 3},
-    {name: 'Thu', oidc: 2, saml: 2},
-    {name: 'Fri', oidc: 6, saml: 4},
-    {name: 'Sat', oidc: 4, saml: 2},
-    {name: 'Sun', oidc: 3, saml: 1},
-];
+const DEFAULT_STATS = {
+    total_oidc_clients: 0,
+    total_saml_clients: 0,
+    total_saml_connections: 0,
+    total_oidc_connections: 0,
+    total_tenants: 1,
+    public_clients: 0,
+    confidential_clients: 0,
+    recent_activity: []
+};
+
+const DEFAULT_CONNECTION_COUNTS = {
+    oidc: 0,
+    saml: 0,
+    ldap: 0
+};
 
 function StatCard({icon: Icon, title, value, description, color, onClick}) {
     return (
@@ -87,47 +92,116 @@ function CustomTooltip({active, payload, label}) {
     return null;
 }
 
+function ProtocolCountRow({label, value, color}) {
+    return (
+        <div className="flex items-center justify-between rounded-lg border border-border/40 bg-muted/20 px-3 py-3">
+            <div className="flex items-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full" style={{backgroundColor: color}}/>
+                <span className="text-sm text-foreground">{label}</span>
+            </div>
+            <span className="text-lg font-semibold font-heading">{value}</span>
+        </div>
+    );
+}
+
+function ActivityProtocolBadge({protocol}) {
+    const normalizedProtocol = protocol?.toLowerCase?.() || 'oidc';
+    const styles = normalizedProtocol === 'ldap'
+        ? 'bg-sky-500/15 text-sky-400 border-sky-500/30'
+        : normalizedProtocol === 'saml'
+            ? 'bg-orange-500/15 text-orange-400 border-orange-500/30'
+            : 'bg-teal-500/15 text-teal-400 border-teal-500/30';
+
+    return (
+        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${styles}`}>
+            {normalizedProtocol.toUpperCase()}
+        </span>
+    );
+}
+
+const getActivityProtocol = (activity) => {
+    const protocolValue = [
+        activity?.protocol,
+        activity?.provider_protocol,
+        activity?.connection_protocol,
+        activity?.provider_type,
+        activity?.connection_type,
+        activity?.auth_protocol,
+        activity?.type
+    ].find((value) => typeof value === 'string' && value.length > 0);
+
+    if (protocolValue) {
+        const normalized = protocolValue.toLowerCase();
+        if (normalized.includes('ldap')) return 'ldap';
+        if (normalized.includes('saml')) return 'saml';
+        if (normalized.includes('oidc') || normalized.includes('openid')) return 'oidc';
+    }
+
+    if (activity?.saml_request_id) {
+        return 'saml';
+    }
+
+    return 'oidc';
+};
+
 export function Dashboard() {
     const navigate = useNavigate();
-    const [stats, setStats] = useState({
-        total_oidc_clients: 0,
-        total_saml_clients: 0,
-        total_saml_connections: 0,
-        total_oidc_connections: 0,
-        total_tenants: 1,
-        public_clients: 0,
-        confidential_clients: 0,
-        recent_activity: []
-    });
+    const [stats, setStats] = useState(DEFAULT_STATS);
+    const [connectionCounts, setConnectionCounts] = useState(DEFAULT_CONNECTION_COUNTS);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetchStats();
+        fetchDashboardData();
     }, []);
 
-    const fetchStats = async () => {
-        try {
-            const response = await getDashboardStats();
-            setStats(response.data);
-        } catch (error) {
-            toast.error('Failed to load dashboard stats');
-        } finally {
-            setLoading(false);
+    const fetchDashboardData = async () => {
+        setLoading(true);
+
+        const [statsResult, oidcResult, samlResult, ldapResult] = await Promise.allSettled([
+            getDashboardStats(),
+            getOIDCConnections(),
+            getSAMLConnections(),
+            getLDAPConnections()
+        ]);
+
+        if (statsResult.status === 'fulfilled') {
+            setStats(statsResult.value.data || DEFAULT_STATS);
+        } else {
+            toast.error(statsResult.reason?.message || 'Failed to load dashboard stats');
         }
+
+        const nextConnectionCounts = {
+            oidc: oidcResult.status === 'fulfilled' ? (oidcResult.value.data || []).length : 0,
+            saml: samlResult.status === 'fulfilled' ? (samlResult.value.data || []).length : 0,
+            ldap: ldapResult.status === 'fulfilled' ? (ldapResult.value.data || []).length : 0,
+        };
+        setConnectionCounts(nextConnectionCounts);
+
+        const secondaryErrors = [
+            oidcResult.status === 'rejected' ? oidcResult.reason : null,
+            samlResult.status === 'rejected' ? samlResult.reason : null,
+            ldapResult.status === 'rejected' ? ldapResult.reason : null,
+        ].filter(Boolean);
+
+        if (secondaryErrors.length === 1) {
+            toast.error(secondaryErrors[0]?.message || 'Failed to load one connection count');
+        } else if (secondaryErrors.length > 1) {
+            toast.error('Failed to load some connection counts');
+        }
+
+        setLoading(false);
     };
 
     const totalClients = stats.total_oidc_clients + stats.total_saml_clients;
-    const totalConnections = stats.total_saml_connections + stats.total_oidc_connections;
+    const totalConnections = connectionCounts.oidc + connectionCounts.saml + connectionCounts.ldap;
 
-    const protocolDistribution = [
-        {name: 'OIDC Clients', value: stats.total_oidc_clients, color: COLORS.oidc},
-        {name: 'SAML Clients', value: stats.total_saml_clients, color: COLORS.saml}
-    ].filter(d => d.value > 0);
-
-    const connectionDistribution = [
-        {name: 'OIDC', value: stats.total_oidc_connections},
-        {name: 'SAML', value: stats.total_saml_connections}
+    const authSurfaceData = [
+        {name: 'OIDC', value: connectionCounts.oidc, color: COLORS.oidc},
+        {name: 'SAML', value: connectionCounts.saml, color: COLORS.saml},
+        {name: 'LDAP', value: connectionCounts.ldap, color: COLORS.ldap}
     ];
+
+    const hasConfiguredConnections = authSurfaceData.some((item) => item.value > 0);
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
@@ -161,7 +235,6 @@ export function Dashboard() {
 
     return (
         <div className="p-6 lg:p-8 space-y-8 animate-fade-in" data-testid="dashboard-page">
-            {/* Header */}
             <div className="space-y-2">
                 <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
                     Control Plane
@@ -171,7 +244,6 @@ export function Dashboard() {
                 </p>
             </div>
 
-            {/* Stats Grid */}
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <StatCard
                     icon={AppWindow}
@@ -180,16 +252,14 @@ export function Dashboard() {
                     description={`${stats.total_oidc_clients} OIDC, ${stats.total_saml_clients} SAML`}
                     color="bg-blue-600"
                     onClick={() => navigate('/applications/oidc')}
-                    ariaLabel="Open applications overview"
                 />
                 <StatCard
                     icon={Link2}
                     title="Connections"
                     value={totalConnections}
-                    description={`${stats.total_oidc_connections} OIDC, ${stats.total_saml_connections} SAML`}
+                    description={`${connectionCounts.oidc} OIDC, ${connectionCounts.saml} SAML, ${connectionCounts.ldap} LDAP`}
                     color="bg-violet-600"
                     onClick={() => navigate('/connections/oidc')}
-                    ariaLabel="Open connections overview"
                 />
                 <StatCard
                     icon={Building2}
@@ -198,7 +268,6 @@ export function Dashboard() {
                     description="Isolation zones"
                     color="bg-emerald-600"
                     onClick={() => navigate('/tenants')}
-                    ariaLabel="Open tenants overview"
                 />
                 <StatCard
                     icon={Shield}
@@ -206,100 +275,86 @@ export function Dashboard() {
                     value="OK"
                     description="All systems operational"
                     color="bg-teal-600"
-                    ariaLabel="System health status"
                 />
             </div>
 
-            {/* Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Activity Chart */}
                 <Card className="lg:col-span-2 bg-card/40 backdrop-blur-sm border-border/40">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 font-heading">
-                            <TrendingUp className="h-5 w-5 text-primary"/>
-                            Auth Traffic by Protocol
+                            <BarChart3 className="h-5 w-5 text-primary"/>
+                            Configured Auth Surface
                         </CardTitle>
                     </CardHeader>
                     <CardContent>
-                        <div className="h-[250px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <AreaChart data={demoActivityData}>
-                                    <defs>
-                                        <linearGradient id="colorOidc" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={COLORS.oidc} stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor={COLORS.oidc} stopOpacity={0}/>
-                                        </linearGradient>
-                                        <linearGradient id="colorSaml" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor={COLORS.saml} stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor={COLORS.saml} stopOpacity={0}/>
-                                        </linearGradient>
-                                    </defs>
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 17%)"/>
-                                    <XAxis dataKey="name" stroke="hsl(215, 20%, 65%)" fontSize={12}/>
-                                    <YAxis stroke="hsl(215, 20%, 65%)" fontSize={12}/>
-                                    <Tooltip content={<CustomTooltip/>}/>
-                                    <Area
-                                        type="monotone"
-                                        dataKey="oidc"
-                                        stroke={COLORS.oidc}
-                                        fillOpacity={1}
-                                        fill="url(#colorOidc)"
-                                        name="OIDC"
-                                    />
-                                    <Area
-                                        type="monotone"
-                                        dataKey="saml"
-                                        stroke={COLORS.saml}
-                                        fillOpacity={1}
-                                        fill="url(#colorSaml)"
-                                        name="SAML"
-                                    />
-                                </AreaChart>
-                            </ResponsiveContainer>
-                        </div>
-                        <div className="flex justify-center gap-6 mt-4">
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{backgroundColor: COLORS.oidc}}/>
-                                <span className="text-sm text-muted-foreground">OIDC</span>
+                        {hasConfiguredConnections ? (
+                            <>
+                                <div className="h-[250px]">
+                                    <ResponsiveContainer width="100%" height="100%">
+                                        <BarChart data={authSurfaceData}>
+                                            <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 17%)" vertical={false}/>
+                                            <XAxis dataKey="name" stroke="hsl(215, 20%, 65%)" fontSize={12}/>
+                                            <YAxis allowDecimals={false} stroke="hsl(215, 20%, 65%)" fontSize={12}/>
+                                            <Tooltip content={<CustomTooltip/>}/>
+                                            <Bar dataKey="value" name="Configured Connections" radius={[8, 8, 0, 0]}>
+                                                {authSurfaceData.map((entry) => (
+                                                    <Cell key={entry.name} fill={entry.color}/>
+                                                ))}
+                                            </Bar>
+                                        </BarChart>
+                                    </ResponsiveContainer>
+                                </div>
+                                <div className="flex justify-center gap-6 mt-4 flex-wrap">
+                                    {authSurfaceData.map((item) => (
+                                        <div key={item.name} className="flex items-center gap-2">
+                                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}/>
+                                            <span className="text-sm text-muted-foreground">
+                                                {item.name}: <span className="text-foreground font-medium">{item.value}</span>
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </>
+                        ) : (
+                            <div className="h-[250px] flex flex-col items-center justify-center text-center px-6">
+                                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-6">
+                                    <Link2 className="h-8 w-8 text-muted-foreground" strokeWidth={1.5}/>
+                                </div>
+                                <h3 className="font-heading text-xl font-semibold text-foreground mb-2">
+                                    No configured auth surface yet
+                                </h3>
+                                <p className="text-sm text-muted-foreground max-w-md mb-6">
+                                    Add an OIDC, SAML, or LDAP provider to expose real authentication paths across your tenants.
+                                </p>
+                                <Button
+                                    onClick={() => navigate('/connections/oidc')}
+                                    className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
+                                    data-testid="configured-auth-surface-empty-action"
+                                >
+                                    Open Connections
+                                </Button>
                             </div>
-                            <div className="flex items-center gap-2">
-                                <div className="w-3 h-3 rounded-full" style={{backgroundColor: COLORS.saml}}/>
-                                <span className="text-sm text-muted-foreground">SAML</span>
-                            </div>
-                        </div>
+                        )}
                     </CardContent>
                 </Card>
 
-                {/* Protocol Distribution */}
                 <Card className="bg-card/40 backdrop-blur-sm border-border/40">
                     <CardHeader>
                         <CardTitle className="font-heading">Connections</CardTitle>
                     </CardHeader>
-                    <CardContent>
-                        <div className="h-[200px]">
-                            <ResponsiveContainer width="100%" height="100%">
-                                <BarChart data={connectionDistribution} layout="vertical">
-                                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 17%)"
-                                                   horizontal={false}/>
-                                    <XAxis type="number" stroke="hsl(215, 20%, 65%)" fontSize={12}/>
-                                    <YAxis type="category" dataKey="name" stroke="hsl(215, 20%, 65%)" fontSize={12}
-                                           width={50}/>
-                                    <Tooltip content={<CustomTooltip/>}/>
-                                    <Bar dataKey="value" name="Count">
-                                        {connectionDistribution.map((entry, index) => (
-                                            <Cell key={`cell-${index}`} fill={index === 0 ? COLORS.oidc : COLORS.saml}/>
-                                        ))}
-                                    </Bar>
-                                </BarChart>
-                            </ResponsiveContainer>
+                    <CardContent className="space-y-3">
+                        <div className="rounded-lg border border-border/40 bg-muted/20 px-4 py-3">
+                            <p className="text-xs uppercase tracking-wider text-muted-foreground">Configured Total</p>
+                            <p className="text-2xl font-bold font-heading mt-1">{totalConnections}</p>
                         </div>
+                        <ProtocolCountRow label="OIDC Providers" value={connectionCounts.oidc} color={COLORS.oidc}/>
+                        <ProtocolCountRow label="SAML Providers" value={connectionCounts.saml} color={COLORS.saml}/>
+                        <ProtocolCountRow label="LDAP Providers" value={connectionCounts.ldap} color={COLORS.ldap}/>
                     </CardContent>
                 </Card>
             </div>
 
-            {/* Recent Activity & Quick Actions */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Recent Activity */}
                 <Card className="bg-card/40 backdrop-blur-sm border-border/40">
                     <CardHeader>
                         <CardTitle className="flex items-center gap-2 font-heading">
@@ -313,33 +368,32 @@ export function Dashboard() {
                                 {stats.recent_activity.map((activity, index) => (
                                     <div
                                         key={index}
-                                        className="flex items-center justify-between py-2 border-b border-border/40 last:border-0"
+                                        className="flex items-center justify-between gap-4 py-2 border-b border-border/40 last:border-0"
                                     >
-                                        <div className="flex items-center gap-3">
-                                            <ProtocolBadge protocol={!!activity.saml_request_id ? "saml" : "oidc"}/>
-                                            <ActivityTypeBadge type={"login_request"}/>
-                                            <div>
-                                                <p className="text-sm font-medium">{activity.subject}</p>
+                                        <div className="flex items-center gap-3 min-w-0">
+                                            <ActivityProtocolBadge protocol={getActivityProtocol(activity)}/>
+                                            <ActivityTypeBadge type={activity.type || "activity"}/>
+                                            <div className="min-w-0">
+                                                <p className="text-sm font-medium truncate">{activity.subject || 'Unknown subject'}</p>
                                                 <p className="text-xs text-muted-foreground capitalize">
-                                                    {activity.type?.replace('_', ' ')} {activity.status}
+                                                    {activity.type?.replace('_', ' ') || 'activity'} {activity.status || ''}
                                                 </p>
                                             </div>
                                         </div>
-                                        <span className="text-xs text-muted-foreground">
-                      {formatDate(activity.timestamp)}
-                    </span>
+                                        <span className="text-xs text-muted-foreground shrink-0">
+                                            {formatDate(activity.timestamp)}
+                                        </span>
                                     </div>
                                 ))}
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground text-center py-8">
-                                No recent activity
+                                No authentication activity yet. Start by creating a connection or client.
                             </p>
                         )}
                     </CardContent>
                 </Card>
 
-                {/* Quick Actions */}
                 <Card className="bg-card/40 backdrop-blur-sm border-border/40">
                     <CardHeader>
                         <CardTitle className="font-heading">Quick Actions</CardTitle>
@@ -390,6 +444,18 @@ export function Dashboard() {
               <span className="flex items-center gap-2">
                 <GlobeLock className="h-4 w-4"/>
                 Add OIDC Provider
+              </span>
+                            <ArrowRight className="h-4 w-4"/>
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="w-full justify-between"
+                            onClick={() => navigate('/connections/ldap')}
+                            data-testid="quick-action-ldap-connection"
+                        >
+              <span className="flex items-center gap-2">
+                <Server className="h-4 w-4"/>
+                Add LDAP Provider
               </span>
                             <ArrowRight className="h-4 w-4"/>
                         </Button>
