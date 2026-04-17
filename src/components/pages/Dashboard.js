@@ -1,4 +1,4 @@
-import {useEffect, useState} from 'react';
+import {useEffect, useState, useMemo, useCallback} from 'react';
 import {useNavigate} from 'react-router-dom';
 import {
     AppWindow,
@@ -11,11 +11,18 @@ import {
     KeyRound,
     RefreshCw,
     Server,
-    BarChart3
+    BarChart3,
+    AlertCircle
 } from 'lucide-react';
 import {Card, CardContent, CardHeader, CardTitle} from '../ui/card';
 import {Button} from '../ui/button';
-import {getDashboardStats, getLDAPConnections, getOIDCConnections, getSAMLConnections} from '../../lib/api';
+import {
+    getDashboardStats,
+    getLDAPConnections,
+    getOIDCConnections,
+    getSAMLConnections,
+    getDashboardAuthActivity
+} from '../../lib/api';
 import {toast} from 'sonner';
 import {
     BarChart,
@@ -25,14 +32,23 @@ import {
     CartesianGrid,
     Tooltip,
     ResponsiveContainer,
+    Legend,
     Cell
 } from 'recharts';
 import {ActivityTypeBadge} from "@/components/shared/ActivityTypeBadge";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 
 const COLORS = {
-    oidc: '#14b8a6',
-    saml: '#f97316',
-    ldap: '#0ea5e9'
+    oidc: '#14b8a6', // teal-500
+    saml: '#f97316', // orange-500
+    ldap: '#0ea5e9', // sky-500
+    failure: '#ef4444' // red-500
 };
 
 const DEFAULT_STATS = {
@@ -50,6 +66,18 @@ const DEFAULT_CONNECTION_COUNTS = {
     oidc: 0,
     saml: 0,
     ldap: 0
+};
+
+const DEFAULT_AUTH_ACTIVITY = {
+    protocols: {
+        oidc: { success: 0, failure: 0 },
+        saml: { success: 0, failure: 0 },
+        ldap: { success: 0, failure: 0 }
+    },
+    totals: {
+        success: 0,
+        failure: 0
+    }
 };
 
 function StatCard({icon: Icon, title, value, description, color, onClick}) {
@@ -80,11 +108,15 @@ function CustomTooltip({active, payload, label}) {
     if (active && payload && payload.length) {
         return (
             <div className="bg-card/95 backdrop-blur-xl border border-border/40 rounded-lg p-3 shadow-xl">
-                <p className="font-medium text-foreground">{label}</p>
+                <p className="font-medium text-foreground mb-2 border-b border-border/40 pb-1">{label}</p>
                 {payload.map((entry, index) => (
-                    <p key={index} className="text-sm text-muted-foreground">
-                        {entry.name}: <span className="text-foreground font-medium">{entry.value}</span>
-                    </p>
+                    <div key={index} className="flex items-center justify-between gap-4 text-sm">
+                        <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full" style={{backgroundColor: entry.color}} />
+                            <span className="text-muted-foreground">{entry.name}:</span>
+                        </div>
+                        <span className="text-foreground font-medium">{entry.value}</span>
+                    </div>
                 ))}
             </div>
         );
@@ -148,13 +180,13 @@ export function Dashboard() {
     const navigate = useNavigate();
     const [stats, setStats] = useState(DEFAULT_STATS);
     const [connectionCounts, setConnectionCounts] = useState(DEFAULT_CONNECTION_COUNTS);
+    const [authActivity, setAuthActivity] = useState(DEFAULT_AUTH_ACTIVITY);
+    const [range, setRange] = useState('24h');
     const [loading, setLoading] = useState(true);
+    const [activityLoading, setActivityLoading] = useState(false);
+    const [activityError, setActivityError] = useState(null);
 
-    useEffect(() => {
-        fetchDashboardData();
-    }, []);
-
-    const fetchDashboardData = async () => {
+    const fetchDashboardData = useCallback(async () => {
         setLoading(true);
 
         const [statsResult, oidcResult, samlResult, ldapResult] = await Promise.allSettled([
@@ -190,18 +222,61 @@ export function Dashboard() {
         }
 
         setLoading(false);
-    };
+    }, []);
+
+    const fetchAuthActivity = useCallback(async () => {
+        setActivityLoading(true);
+        setActivityError(null);
+        try {
+            const response = await getDashboardAuthActivity(range);
+            setAuthActivity(response.data || DEFAULT_AUTH_ACTIVITY);
+        } catch (error) {
+            console.error('Failed to fetch auth activity:', error);
+            setActivityError(error.message || 'Failed to load activity metrics');
+            // We don't toast here to avoid breaking the full dashboard experience as per requirement 6
+        } finally {
+            setActivityLoading(false);
+        }
+    }, [range]);
+
+    useEffect(() => {
+        fetchDashboardData();
+    }, [fetchDashboardData]);
+
+    useEffect(() => {
+        fetchAuthActivity();
+    }, [fetchAuthActivity]);
+
+    const authActivityData = useMemo(() => {
+        if (!authActivity?.protocols) return [];
+        return [
+            {
+                name: 'OIDC',
+                success: authActivity.protocols.oidc?.success || 0,
+                failure: authActivity.protocols.oidc?.failure || 0,
+                color: COLORS.oidc
+            },
+            {
+                name: 'SAML',
+                success: authActivity.protocols.saml?.success || 0,
+                failure: authActivity.protocols.saml?.failure || 0,
+                color: COLORS.saml
+            },
+            {
+                name: 'LDAP',
+                success: authActivity.protocols.ldap?.success || 0,
+                failure: authActivity.protocols.ldap?.failure || 0,
+                color: COLORS.ldap
+            }
+        ];
+    }, [authActivity]);
+
+    const hasActivity = useMemo(() => {
+        return authActivityData.some(d => d.success > 0 || d.failure > 0);
+    }, [authActivityData]);
 
     const totalClients = stats.total_oidc_clients + stats.total_saml_clients;
     const totalConnections = connectionCounts.oidc + connectionCounts.saml + connectionCounts.ldap;
-
-    const authSurfaceData = [
-        {name: 'OIDC', value: connectionCounts.oidc, color: COLORS.oidc},
-        {name: 'SAML', value: connectionCounts.saml, color: COLORS.saml},
-        {name: 'LDAP', value: connectionCounts.ldap, color: COLORS.ldap}
-    ];
-
-    const hasConfiguredConnections = authSurfaceData.some((item) => item.value > 0);
 
     const formatDate = (dateString) => {
         if (!dateString) return 'N/A';
@@ -216,7 +291,7 @@ export function Dashboard() {
 
     if (loading) {
         return (
-            <div className="p-6 lg:p-8 space-y-8 animate-fade-in h-full" data-testid="dashboard-page">
+            <div className="p-6 lg:p-8 space-y-8 animate-fade-in h-full" data-testid="dashboard-loading">
                 <div className="space-y-2">
                     <h1 className="text-3xl md:text-4xl font-bold font-heading tracking-tight">
                         Control Plane
@@ -279,59 +354,124 @@ export function Dashboard() {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <Card className="lg:col-span-2 bg-card/40 backdrop-blur-sm border-border/40">
-                    <CardHeader>
+                <Card className="lg:col-span-2 bg-card/40 backdrop-blur-sm border-border/40 overflow-hidden">
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-7">
                         <CardTitle className="flex items-center gap-2 font-heading">
                             <BarChart3 className="h-5 w-5 text-primary"/>
-                            Configured Auth Surface
+                            Authentication Activity
                         </CardTitle>
+                        <Select value={range} onValueChange={setRange} disabled={activityLoading}>
+                            <SelectTrigger className="w-[100px] bg-background/50 border-border/40">
+                                <SelectValue placeholder="Range" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="1h">Last hour</SelectItem>
+                                <SelectItem value="24h">Last 24h</SelectItem>
+                                <SelectItem value="7d">Last 7 days</SelectItem>
+                            </SelectContent>
+                        </Select>
                     </CardHeader>
                     <CardContent>
-                        {hasConfiguredConnections ? (
+                        {activityLoading ? (
+                            <div className="h-[300px] flex items-center justify-center">
+                                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground/50"/>
+                            </div>
+                        ) : activityError ? (
+                            <div className="h-[300px] flex flex-col items-center justify-center text-center px-6">
+                                <AlertCircle className="h-10 w-10 text-destructive/50 mb-4" />
+                                <h3 className="font-heading text-lg font-semibold text-foreground mb-1">
+                                    Metrics unavailable
+                                </h3>
+                                <p className="text-sm text-muted-foreground max-w-xs mb-4">
+                                    {activityError}
+                                </p>
+                                <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={fetchAuthActivity}
+                                    className="border-border/40 hover:bg-muted/50"
+                                >
+                                    Retry
+                                </Button>
+                            </div>
+                        ) : hasActivity ? (
                             <>
-                                <div className="h-[250px]">
+                                <div className="h-[300px]">
                                     <ResponsiveContainer width="100%" height="100%">
-                                        <BarChart data={authSurfaceData}>
+                                        <BarChart data={authActivityData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                                             <CartesianGrid strokeDasharray="3 3" stroke="hsl(217, 33%, 17%)" vertical={false}/>
-                                            <XAxis dataKey="name" stroke="hsl(215, 20%, 65%)" fontSize={12}/>
-                                            <YAxis allowDecimals={false} stroke="hsl(215, 20%, 65%)" fontSize={12}/>
-                                            <Tooltip content={<CustomTooltip/>}/>
-                                            <Bar dataKey="value" name="Configured Connections" radius={[8, 8, 0, 0]}>
-                                                {authSurfaceData.map((entry) => (
-                                                    <Cell key={entry.name} fill={entry.color}/>
+                                            <XAxis
+                                                dataKey="name"
+                                                stroke="hsl(215, 20%, 65%)"
+                                                fontSize={12}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <YAxis
+                                                allowDecimals={false}
+                                                stroke="hsl(215, 20%, 65%)"
+                                                fontSize={12}
+                                                tickLine={false}
+                                                axisLine={false}
+                                            />
+                                            <Tooltip
+                                                cursor={{ fill: 'rgba(255, 255, 255, 0.05)' }}
+                                                content={<CustomTooltip/>}
+                                            />
+                                            <Legend
+                                                verticalAlign="top"
+                                                align="right"
+                                                iconType="circle"
+                                                wrapperStyle={{ paddingTop: '0', paddingBottom: '20px', fontSize: '12px' }}
+                                            />
+                                            <Bar
+                                                dataKey="success"
+                                                name="Success"
+                                                stackId="a"
+                                                radius={[0, 0, 0, 0]}
+                                            >
+                                                {authActivityData.map((entry, index) => (
+                                                    <Cell key={`cell-success-${index}`} fill={entry.color} />
                                                 ))}
                                             </Bar>
+                                            <Bar
+                                                dataKey="failure"
+                                                name="Failure"
+                                                stackId="a"
+                                                radius={[4, 4, 0, 0]}
+                                                fill={COLORS.failure}
+                                            />
                                         </BarChart>
                                     </ResponsiveContainer>
                                 </div>
-                                <div className="flex justify-center gap-6 mt-4 flex-wrap">
-                                    {authSurfaceData.map((item) => (
-                                        <div key={item.name} className="flex items-center gap-2">
-                                            <div className="w-3 h-3 rounded-full" style={{backgroundColor: item.color}}/>
-                                            <span className="text-sm text-muted-foreground">
-                                                {item.name}: <span className="text-foreground font-medium">{item.value}</span>
-                                            </span>
-                                        </div>
-                                    ))}
+                                <div className="flex items-center justify-center gap-8 pt-4 border-t border-border/40 mt-4">
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Success</span>
+                                        <span className="text-xl font-bold text-teal-500 font-heading">{authActivity.totals?.success || 0}</span>
+                                    </div>
+                                    <div className="w-px h-8 bg-border/40" />
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-[10px] uppercase tracking-wider text-muted-foreground">Total Failure</span>
+                                        <span className="text-xl font-bold text-destructive font-heading">{authActivity.totals?.failure || 0}</span>
+                                    </div>
                                 </div>
                             </>
                         ) : (
-                            <div className="h-[250px] flex flex-col items-center justify-center text-center px-6">
+                            <div className="h-[300px] flex flex-col items-center justify-center text-center px-6">
                                 <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted/50 mb-6">
-                                    <Link2 className="h-8 w-8 text-muted-foreground" strokeWidth={1.5}/>
+                                    <BarChart3 className="h-8 w-8 text-muted-foreground" strokeWidth={1.5}/>
                                 </div>
                                 <h3 className="font-heading text-xl font-semibold text-foreground mb-2">
-                                    No configured auth surface yet
+                                    No authentication activity
                                 </h3>
                                 <p className="text-sm text-muted-foreground max-w-md mb-6">
-                                    Add an OIDC, SAML, or LDAP provider to expose real authentication paths across your tenants.
+                                    No authentication activity in the selected range ({range === '1h' ? 'last hour' : range === '24h' ? 'last 24h' : 'last 7 days'}).
                                 </p>
                                 <Button
                                     onClick={() => navigate('/connections/oidc')}
                                     className="bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg shadow-primary/20"
-                                    data-testid="configured-auth-surface-empty-action"
                                 >
-                                    Open Connections
+                                    Check Connections
                                 </Button>
                             </div>
                         )}
@@ -403,7 +543,6 @@ export function Dashboard() {
                             variant="outline"
                             className="w-full justify-between"
                             onClick={() => navigate('/applications/oidc')}
-                            data-testid="quick-action-oidc-client"
                         >
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-teal-500"/>
@@ -415,7 +554,6 @@ export function Dashboard() {
                             variant="outline"
                             className="w-full justify-between"
                             onClick={() => navigate('/applications/saml')}
-                            data-testid="quick-action-saml-client"
                         >
               <span className="flex items-center gap-2">
                 <span className="w-2 h-2 rounded-full bg-orange-500"/>
@@ -427,7 +565,6 @@ export function Dashboard() {
                             variant="outline"
                             className="w-full justify-between"
                             onClick={() => navigate('/connections/saml')}
-                            data-testid="quick-action-saml-connection"
                         >
               <span className="flex items-center gap-2">
                 <KeyRound className="h-4 w-4"/>
@@ -439,7 +576,6 @@ export function Dashboard() {
                             variant="outline"
                             className="w-full justify-between"
                             onClick={() => navigate('/connections/oidc')}
-                            data-testid="quick-action-oidc-connection"
                         >
               <span className="flex items-center gap-2">
                 <GlobeLock className="h-4 w-4"/>
@@ -451,7 +587,6 @@ export function Dashboard() {
                             variant="outline"
                             className="w-full justify-between"
                             onClick={() => navigate('/connections/ldap')}
-                            data-testid="quick-action-ldap-connection"
                         >
               <span className="flex items-center gap-2">
                 <Server className="h-4 w-4"/>

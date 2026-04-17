@@ -39,6 +39,7 @@ api.interceptors.response.use(
 
 // Dashboard
 export const getDashboardStats = () => api.get('/dashboard/stats');
+export const getDashboardAuthActivity = (range = '24h') => api.get('/dashboard/auth-activity', { params: { range } });
 
 // Tenants
 export const getTenants = () => api.get('/tenants');
