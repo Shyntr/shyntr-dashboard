@@ -96,4 +96,11 @@ export const getOutboundPolicy = (id) => api.get(`/outbound-policies/${id}`);
 export const updateOutboundPolicy = (id, data) => api.put(`/outbound-policies/${id}`, data);
 export const deleteOutboundPolicy = (id) => api.delete(`/outbound-policies/${id}`);
 
+// Branding
+export const getBranding = (tenantId) => api.get(`/tenants/${tenantId}/branding`);
+export const updateBrandingDraft = (tenantId, theme) => api.put(`/tenants/${tenantId}/branding/draft`, { theme });
+export const publishBranding = (tenantId) => api.post(`/tenants/${tenantId}/branding/publish`);
+export const discardBranding = (tenantId) => api.post(`/tenants/${tenantId}/branding/discard`);
+export const resetBranding = (tenantId, target) => api.post(`/tenants/${tenantId}/branding/reset`, { target });
+
 export default api;

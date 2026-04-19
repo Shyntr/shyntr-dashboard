@@ -11,6 +11,7 @@ import {
     ChevronDown,
     Fingerprint,
     ShieldAlert,
+    Palette,
     Settings as SettingsIcon
 } from 'lucide-react';
 import {Button} from '../ui/button';
@@ -18,31 +19,41 @@ import {Sheet, SheetContent, SheetTrigger} from '../ui/sheet';
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '../ui/collapsible';
 import {useTheme} from '../../context/ThemeContext';
 import {cn} from '../../lib/utils';
+import {isBrandingEEEnabled} from '../../lib/env';
 
-const navigation = [
-    {name: 'Dashboard', href: '/', icon: LayoutDashboard},
-    {
-        name: 'Applications',
-        icon: AppWindow,
-        children: [
-            {name: 'OIDC Clients', href: '/applications/oidc', protocol: 'oidc'},
-            {name: 'SAML Clients', href: '/applications/saml', protocol: 'saml'},
-        ]
-    },
-    {
-        name: 'Connections',
-        icon: Link2,
-        children: [
-            {name: 'OIDC Providers', href: '/connections/oidc', protocol: 'oidc'},
-            {name: 'SAML Providers', href: '/connections/saml', protocol: 'saml'},
-            {name: 'LDAP Providers', href: '/connections/ldap', protocol: 'ldap'},
-        ]
-    },
-    {name: 'Tenants', href: '/tenants', icon: Building2},
-    {name: 'Scopes', href: '/scopes', icon: Fingerprint},
-    {name: 'Outbound Policies', href: '/outbound-policies', icon: ShieldAlert},
-    {name: 'Settings', href: '/settings', icon: SettingsIcon},
-];
+const getNavigation = () => {
+    const navigation = [
+        {name: 'Dashboard', href: '/', icon: LayoutDashboard},
+        {
+            name: 'Applications',
+            icon: AppWindow,
+            children: [
+                {name: 'OIDC Clients', href: '/applications/oidc', protocol: 'oidc'},
+                {name: 'SAML Clients', href: '/applications/saml', protocol: 'saml'},
+            ]
+        },
+        {
+            name: 'Connections',
+            icon: Link2,
+            children: [
+                {name: 'OIDC Providers', href: '/connections/oidc', protocol: 'oidc'},
+                {name: 'SAML Providers', href: '/connections/saml', protocol: 'saml'},
+                {name: 'LDAP Providers', href: '/connections/ldap', protocol: 'ldap'},
+            ]
+        },
+        {name: 'Tenants', href: '/tenants', icon: Building2},
+        {name: 'Scopes', href: '/scopes', icon: Fingerprint},
+        {name: 'Outbound Policies', href: '/outbound-policies', icon: ShieldAlert},
+    ];
+
+    if (isBrandingEEEnabled()) {
+        navigation.push({name: 'Branding', href: '/branding', icon: Palette});
+    }
+
+    navigation.push({name: 'Settings', href: '/settings', icon: SettingsIcon});
+
+    return navigation;
+};
 
 function NavItem({item, mobile, onClose}) {
     const location = useLocation();
@@ -134,6 +145,8 @@ function NavItem({item, mobile, onClose}) {
 }
 
 function Sidebar({mobile = false, onClose}) {
+    const navigation = getNavigation();
+
     return (
         <div className="flex h-full flex-col">
             {/* Logo */}

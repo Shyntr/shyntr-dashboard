@@ -11,10 +11,14 @@ import { LDAPConnections } from "./components/pages/LDAPConnections";
 import { Tenants } from "./components/pages/Tenants";
 import { Scopes } from "./components/pages/Scopes";
 import { Settings } from "./components/pages/Settings";
+import { Branding } from "./components/pages/Branding";
 import { Toaster } from "./components/ui/sonner";
 import {OutboundPolicies} from "@/components/pages/OutboundPolicies";
+import { isBrandingEEEnabled } from "./lib/env";
 
 function App() {
+  const brandingEnabled = isBrandingEEEnabled();
+
   return (
     <ThemeProvider defaultTheme="dark" storageKey="shyntr-theme">
       <BrowserRouter basename={window._env_?.SHYNTR_PATH_PREFIX || "/"}>
@@ -34,6 +38,7 @@ function App() {
             <Route path="/tenants" element={<Tenants />} />
             <Route path="/scopes" element={<Scopes />} />
             <Route path="/outbound-policies" element={<OutboundPolicies />} />
+            {brandingEnabled && <Route path="/branding" element={<Branding />} />}
             <Route path="/settings" element={<Settings />} />
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" replace />} />
