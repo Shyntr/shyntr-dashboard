@@ -635,7 +635,7 @@ export function Branding() {
         ...buildPortalPreviewCssVars(portalPreviewTheme),
         ...buildPortalPreviewShellStyle(portalPreviewTheme),
     };
-    const mascotSrc = `${window._env_?.SHYNTR_PATH_PREFIX || '/'}mascot.png`;
+    const mascotSrc = `${window._env_?.SHYNTR_PATH_PREFIX || '/'}logo-primary.svg`;
     const previewCardStyle = {
         background: 'var(--auth-card-background)',
         border: `var(--auth-border-width) solid var(--auth-card-border)`,

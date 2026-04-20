@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="public/mascot.png" alt="Project Logo" width="175">
+  <img src="public/logo-primary.png" alt="Project Logo" width="175">
   <br>
   <i>Shyntr - Dashboard</i>
 </p>
