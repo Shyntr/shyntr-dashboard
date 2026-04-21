@@ -50,37 +50,53 @@ export const createTenant = (data) => api.post('/tenants', data);
 export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
 export const deleteTenant = (id) => api.delete(`/tenants/${id}`);
 
+const getManagementCollectionPath = (resource, tenantId) => (
+  tenantId
+    ? `/tenants/${tenantId}/${resource}`
+    : `/${resource}`
+);
+
+const getManagementDetailPath = (resource, tenantId, id) =>
+  `/${resource}/${tenantId}/${id}`;
+
+const getManagementUpdatePath = (resource, id) =>
+  `/${resource}/${id}`;
+
 // OIDC Clients (Applications)
-export const getOIDCClients = () => api.get('/clients');
+export const getOIDCClients = (tenantId) => api.get(getManagementCollectionPath('clients', tenantId));
+export const getOIDCClient = (tenantId, id) => api.get(getManagementDetailPath('clients', tenantId, id));
 export const createOIDCClient = (data) => api.post('/clients', data);
-export const updateOIDCClient = (id, data) => api.put(`/clients/${id}`, data);
-export const deleteOIDCClient = (id, tenantId) => api.delete(`/clients/${tenantId}/${id}`);
+export const updateOIDCClient = (id, data) => api.put(getManagementUpdatePath('clients', id), data);
+export const deleteOIDCClient = (tenantId, id) => api.delete(getManagementDetailPath('clients', tenantId, id));
 
 // SAML Clients (Service Providers)
-export const getSAMLClients = () => api.get('/saml-clients');
+export const getSAMLClients = (tenantId) => api.get(getManagementCollectionPath('saml-clients', tenantId));
+export const getSAMLClient = (tenantId, id) => api.get(getManagementDetailPath('saml-clients', tenantId, id));
 export const createSAMLClient = (data) => api.post('/saml-clients', data);
-export const updateSAMLClient = (id, data) => api.put(`/saml-clients/${id}`, data);
-export const deleteSAMLClient = (id, tenantId) => api.delete(`/saml-clients/${tenantId}/${id}`);
+export const updateSAMLClient = (id, data) => api.put(getManagementUpdatePath('saml-clients', id), data);
+export const deleteSAMLClient = (tenantId, id) => api.delete(getManagementDetailPath('saml-clients', tenantId, id));
 
 // SAML Connections (Identity Providers)
-export const getSAMLConnections = () => api.get('/saml-connections');
+export const getSAMLConnections = (tenantId) => api.get(getManagementCollectionPath('saml-connections', tenantId));
+export const getSAMLConnection = (tenantId, id) => api.get(getManagementDetailPath('saml-connections', tenantId, id));
 export const createSAMLConnection = (data) => api.post('/saml-connections', data);
-export const updateSAMLConnection = (id, data) => api.put(`/saml-connections/${id}`, data);
-export const deleteSAMLConnection = (id, tenantId) => api.delete(`/saml-connections/${tenantId}/${id}`);
+export const updateSAMLConnection = (id, data) => api.put(getManagementUpdatePath('saml-connections', id), data);
+export const deleteSAMLConnection = (tenantId, id) => api.delete(getManagementDetailPath('saml-connections', tenantId, id));
 
 // OIDC Connections (External Providers)
-export const getOIDCConnections = () => api.get('/oidc-connections');
+export const getOIDCConnections = (tenantId) => api.get(getManagementCollectionPath('oidc-connections', tenantId));
+export const getOIDCConnection = (tenantId, id) => api.get(getManagementDetailPath('oidc-connections', tenantId, id));
 export const createOIDCConnection = (data) => api.post('/oidc-connections', data);
-export const updateOIDCConnection = (id, data) => api.put(`/oidc-connections/${id}`, data);
-export const deleteOIDCConnection = (id, tenantId) => api.delete(`/oidc-connections/${tenantId}/${id}`);
+export const updateOIDCConnection = (id, data) => api.put(getManagementUpdatePath('oidc-connections', id), data);
+export const deleteOIDCConnection = (tenantId, id) => api.delete(getManagementDetailPath('oidc-connections', tenantId, id));
 
 // LDAP Connections (Directory Providers)
-export const getLDAPConnections = () => api.get('/ldap-connections');
-export const getLDAPConnection = (tenantId, id) => api.get(`/ldap-connections/${tenantId}/${id}`);
+export const getLDAPConnections = (tenantId) => api.get(getManagementCollectionPath('ldap-connections', tenantId));
+export const getLDAPConnection = (tenantId, id) => api.get(getManagementDetailPath('ldap-connections', tenantId, id));
 export const createLDAPConnection = (data) => api.post('/ldap-connections', data);
-export const updateLDAPConnection = (tenantId, id, data) => api.put(`/ldap-connections/${tenantId}/${id}`, data);
-export const deleteLDAPConnection = (tenantId, id) => api.delete(`/ldap-connections/${tenantId}/${id}`);
-export const testLDAPConnection = (tenantId, id) => api.post(`/ldap-connections/${tenantId}/${id}/test`);
+export const updateLDAPConnection = (tenantId, id, data) => api.put(getManagementDetailPath('ldap-connections', tenantId, id), data);
+export const deleteLDAPConnection = (tenantId, id) => api.delete(getManagementDetailPath('ldap-connections', tenantId, id));
+export const testLDAPConnection = (tenantId, id) => api.post(`${getManagementDetailPath('ldap-connections', tenantId, id)}/test`);
 
 // Scopes
 export const getScopes = (tenantId) => api.get(`/tenants/${tenantId}/scopes`);

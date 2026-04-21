@@ -199,7 +199,7 @@ function SAMLClients() {
         setIsDeleting(true);
 
         try {
-            await deleteSAMLClient(selectedClient.id, selectedClient.tenant_id);
+            await deleteSAMLClient(selectedClient.tenant_id, selectedClient.id);
             toast.success('SAML client deleted successfully');
             await fetchClients();
         } catch (error) {
@@ -227,6 +227,10 @@ function SAMLClients() {
                 toast.error('ACS URL is required if Metadata URL is not provided');
                 return;
             }
+        }
+        if (!formData.tenant_id.trim()) {
+            toast.error('Tenant is required');
+            return;
         }
 
         let attributeMapping = {};
@@ -456,7 +460,7 @@ function SAMLClients() {
                                         <Select
                                             value={formData.tenant_id}
                                             onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
-                                            disabled={isSubmitting}
+                                            disabled={isSubmitting || isEditing}
                                         >
                                             <SelectTrigger>
                                                 <SelectValue placeholder="Select a tenant" />
@@ -469,6 +473,11 @@ function SAMLClients() {
                                                 ))}
                                             </SelectContent>
                                         </Select>
+                                        {isEditing && (
+                                            <p className="text-xs text-muted-foreground">
+                                                Tenant cannot be changed during edit because update and delete operations are tenant-scoped.
+                                            </p>
+                                        )}
                                     </div>
                                     <div className="space-y-2">
                                         <Label htmlFor="name">Display Name</Label>
