@@ -173,7 +173,7 @@ function Sidebar({mobile = false, onClose}) {
             {/* Footer */}
             <div className="border-t border-border/40 p-4">
                 <div className="text-xs text-muted-foreground">
-                    <p className="font-medium">Shyntr v1.0</p>
+                    <p className="font-medium">Shyntr v1.1</p>
                     <p className="mt-1 opacity-70">Protocol-Agnostic Auth</p>
                 </div>
             </div>
