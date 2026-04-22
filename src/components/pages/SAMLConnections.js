@@ -57,11 +57,19 @@ const defaultConnection = {
   idp_slo_url: '',
   idp_certificate: '',
   idp_encryption_certificate: '',
+  sp_private_key: '',
   idp_metadata_xml: '',
   sign_request: true,
   force_authn: false,
   attribute_mapping: {}
 };
+
+const normalizeConnectionForForm = (connection) => ({
+  ...defaultConnection,
+  ...connection,
+  attribute_mapping: connection?.attribute_mapping || {},
+  sp_private_key: '',
+});
 
 export function SAMLConnections() {
   const [connections, setConnections] = useState([]);
@@ -194,7 +202,7 @@ export function SAMLConnections() {
       return;
     }
 
-    setFormData(connection);
+    setFormData(normalizeConnectionForForm(connection));
     setAttributeMappingJson(connection.attribute_mapping || {});
     setSelectedConnection(connection);
     setIsEditing(true);
@@ -218,7 +226,7 @@ export function SAMLConnections() {
     setIsDeleting(true);
 
     try {
-      await deleteSAMLConnection(selectedConnection.id, selectedConnection.tenant_id);
+      await deleteSAMLConnection(selectedConnection.tenant_id, selectedConnection.id);
       toast.success('SAML connection deleted successfully');
       await fetchConnections();
     } catch (error) {
@@ -255,6 +263,10 @@ export function SAMLConnections() {
       toast.error('Connection name is required');
       return;
     }
+    if (!formData.tenant_id.trim()) {
+      toast.error('Tenant is required');
+      return;
+    }
 
     const hasMetadataUrl = formData.metadata_url && formData.metadata_url.trim() !== '';
     const hasXml = formData.idp_metadata_xml && formData.idp_metadata_xml.trim() !== '';
@@ -275,6 +287,7 @@ export function SAMLConnections() {
 
     const submitData = {
       ...formData,
+      sp_private_key: isEditing && !formData.sp_private_key.trim() ? '' : formData.sp_private_key,
       attribute_mapping: attributeMapping
     };
 
@@ -494,7 +507,7 @@ export function SAMLConnections() {
                     <Select
                         value={formData.tenant_id}
                         onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isEditing}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a tenant" />
@@ -507,6 +520,11 @@ export function SAMLConnections() {
                         ))}
                       </SelectContent>
                     </Select>
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground">
+                        Tenant cannot be changed during edit because update and delete operations are tenant-scoped.
+                      </p>
+                    )}
                   </div>
 
                   <div className="space-y-2">
@@ -587,6 +605,26 @@ export function SAMLConnections() {
                           disabled={isSubmitting}
                       />
                     </div>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>SP Private Key</Label>
+                    <Textarea
+                        value={formData.sp_private_key || ''}
+                        onChange={(e) => setFormData({ ...formData, sp_private_key: e.target.value })}
+                        placeholder={isEditing
+                          ? 'Leave blank to keep the existing private key'
+                          : `-----BEGIN PRIVATE KEY-----\n...\n-----END PRIVATE KEY-----`
+                        }
+                        rows={6}
+                        className="font-mono text-sm"
+                        disabled={isSubmitting}
+                    />
+                    {isEditing && (
+                      <p className="text-xs text-muted-foreground">
+                        Leave blank to preserve the existing service provider private key.
+                      </p>
+                    )}
                   </div>
 
                   <div className="relative flex py-4 items-center">

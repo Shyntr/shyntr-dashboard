@@ -24,7 +24,14 @@ api.interceptors.request.use(
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message = error.response?.data?.detail || error.message || 'An error occurred';
+    const responseData = error.response?.data;
+    const message =
+      responseData?.detail ||
+      responseData?.user_message ||
+      responseData?.message ||
+      responseData?.error ||
+      error.message ||
+      'An error occurred';
     console.error(`[API Error] ${message}`);
     return Promise.reject({ message, status: error.response?.status });
   }
@@ -32,6 +39,10 @@ api.interceptors.response.use(
 
 // Dashboard
 export const getDashboardStats = () => api.get('/dashboard/stats');
+export const getDashboardAuthActivity = (range = '24h') => api.get('/dashboard/auth-activity', { params: { range } });
+export const getDashboardAuthFailures = (range = '24h') => api.get('/dashboard/auth-failures', { params: { range } });
+export const getDashboardRoutingInsights = (range = '24h') => api.get('/dashboard/routing-insights', { params: { range } });
+export const getHealthSummary = () => api.get('/dashboard/health-summary');
 
 // Tenants
 export const getTenants = () => api.get('/tenants');
@@ -39,29 +50,53 @@ export const createTenant = (data) => api.post('/tenants', data);
 export const updateTenant = (id, data) => api.put(`/tenants/${id}`, data);
 export const deleteTenant = (id) => api.delete(`/tenants/${id}`);
 
+const getManagementCollectionPath = (resource, tenantId) => (
+  tenantId
+    ? `/tenants/${tenantId}/${resource}`
+    : `/${resource}`
+);
+
+const getManagementDetailPath = (resource, tenantId, id) =>
+  `/${resource}/${tenantId}/${id}`;
+
+const getManagementUpdatePath = (resource, id) =>
+  `/${resource}/${id}`;
+
 // OIDC Clients (Applications)
-export const getOIDCClients = () => api.get('/clients');
+export const getOIDCClients = (tenantId) => api.get(getManagementCollectionPath('clients', tenantId));
+export const getOIDCClient = (tenantId, id) => api.get(getManagementDetailPath('clients', tenantId, id));
 export const createOIDCClient = (data) => api.post('/clients', data);
-export const updateOIDCClient = (id, data) => api.put(`/clients/${id}`, data);
-export const deleteOIDCClient = (id, tenantId) => api.delete(`/clients/${tenantId}/${id}`);
+export const updateOIDCClient = (id, data) => api.put(getManagementUpdatePath('clients', id), data);
+export const deleteOIDCClient = (tenantId, id) => api.delete(getManagementDetailPath('clients', tenantId, id));
 
 // SAML Clients (Service Providers)
-export const getSAMLClients = () => api.get('/saml-clients');
+export const getSAMLClients = (tenantId) => api.get(getManagementCollectionPath('saml-clients', tenantId));
+export const getSAMLClient = (tenantId, id) => api.get(getManagementDetailPath('saml-clients', tenantId, id));
 export const createSAMLClient = (data) => api.post('/saml-clients', data);
-export const updateSAMLClient = (id, data) => api.put(`/saml-clients/${id}`, data);
-export const deleteSAMLClient = (id, tenantId) => api.delete(`/saml-clients/${tenantId}/${id}`);
+export const updateSAMLClient = (id, data) => api.put(getManagementUpdatePath('saml-clients', id), data);
+export const deleteSAMLClient = (tenantId, id) => api.delete(getManagementDetailPath('saml-clients', tenantId, id));
 
 // SAML Connections (Identity Providers)
-export const getSAMLConnections = () => api.get('/saml-connections');
+export const getSAMLConnections = (tenantId) => api.get(getManagementCollectionPath('saml-connections', tenantId));
+export const getSAMLConnection = (tenantId, id) => api.get(getManagementDetailPath('saml-connections', tenantId, id));
 export const createSAMLConnection = (data) => api.post('/saml-connections', data);
-export const updateSAMLConnection = (id, data) => api.put(`/saml-connections/${id}`, data);
-export const deleteSAMLConnection = (id, tenantId) => api.delete(`/saml-connections/${tenantId}/${id}`);
+export const updateSAMLConnection = (id, data) => api.put(getManagementUpdatePath('saml-connections', id), data);
+export const deleteSAMLConnection = (tenantId, id) => api.delete(getManagementDetailPath('saml-connections', tenantId, id));
 
 // OIDC Connections (External Providers)
-export const getOIDCConnections = () => api.get('/oidc-connections');
+export const getOIDCConnections = (tenantId) => api.get(getManagementCollectionPath('oidc-connections', tenantId));
+export const getOIDCConnection = (tenantId, id) => api.get(getManagementDetailPath('oidc-connections', tenantId, id));
 export const createOIDCConnection = (data) => api.post('/oidc-connections', data);
-export const updateOIDCConnection = (id, data) => api.put(`/oidc-connections/${id}`, data);
-export const deleteOIDCConnection = (id, tenantId) => api.delete(`/oidc-connections/${tenantId}/${id}`);
+export const updateOIDCConnection = (id, data) => api.put(getManagementUpdatePath('oidc-connections', id), data);
+export const deleteOIDCConnection = (tenantId, id) => api.delete(getManagementDetailPath('oidc-connections', tenantId, id));
+
+// LDAP Connections (Directory Providers)
+export const getLDAPConnections = (tenantId) => api.get(getManagementCollectionPath('ldap-connections', tenantId));
+export const getLDAPConnection = (tenantId, id) => api.get(getManagementDetailPath('ldap-connections', tenantId, id));
+export const createLDAPConnection = (data) => api.post('/ldap-connections', data);
+export const updateLDAPConnection = (tenantId, id, data) => api.put(getManagementDetailPath('ldap-connections', tenantId, id), data);
+export const deleteLDAPConnection = (tenantId, id) => api.delete(getManagementDetailPath('ldap-connections', tenantId, id));
+export const testLDAPConnection = (tenantId, id) => api.post(`${getManagementDetailPath('ldap-connections', tenantId, id)}/test`);
 
 // Scopes
 export const getScopes = (tenantId) => api.get(`/tenants/${tenantId}/scopes`);
@@ -76,5 +111,12 @@ export const createOutboundPolicy = (data) => api.post('/outbound-policies', dat
 export const getOutboundPolicy = (id) => api.get(`/outbound-policies/${id}`);
 export const updateOutboundPolicy = (id, data) => api.put(`/outbound-policies/${id}`, data);
 export const deleteOutboundPolicy = (id) => api.delete(`/outbound-policies/${id}`);
+
+// Branding
+export const getBranding = (tenantId) => api.get(`/tenants/${tenantId}/branding`);
+export const updateBrandingDraft = (tenantId, theme) => api.put(`/tenants/${tenantId}/branding/draft`, { theme });
+export const publishBranding = (tenantId) => api.post(`/tenants/${tenantId}/branding/publish`);
+export const discardBranding = (tenantId) => api.post(`/tenants/${tenantId}/branding/discard`);
+export const resetBranding = (tenantId, target) => api.post(`/tenants/${tenantId}/branding/reset`, { target });
 
 export default api;

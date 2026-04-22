@@ -11,6 +11,7 @@ import {
     ChevronDown,
     Fingerprint,
     ShieldAlert,
+    Palette,
     Settings as SettingsIcon
 } from 'lucide-react';
 import {Button} from '../ui/button';
@@ -18,30 +19,41 @@ import {Sheet, SheetContent, SheetTrigger} from '../ui/sheet';
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '../ui/collapsible';
 import {useTheme} from '../../context/ThemeContext';
 import {cn} from '../../lib/utils';
+import {isBrandingEEEnabled} from '../../lib/env';
 
-const navigation = [
-    {name: 'Dashboard', href: '/', icon: LayoutDashboard},
-    {
-        name: 'Applications',
-        icon: AppWindow,
-        children: [
-            {name: 'OIDC Clients', href: '/applications/oidc', protocol: 'oidc'},
-            {name: 'SAML Clients', href: '/applications/saml', protocol: 'saml'},
-        ]
-    },
-    {
-        name: 'Connections',
-        icon: Link2,
-        children: [
-            {name: 'OIDC Providers', href: '/connections/oidc', protocol: 'oidc'},
-            {name: 'SAML Providers', href: '/connections/saml', protocol: 'saml'},
-        ]
-    },
-    {name: 'Tenants', href: '/tenants', icon: Building2},
-    {name: 'Scopes', href: '/scopes', icon: Fingerprint},
-    {name: 'Outbound Policies', href: '/outbound-policies', icon: ShieldAlert},
-    {name: 'Settings', href: '/settings', icon: SettingsIcon},
-];
+const getNavigation = () => {
+    const navigation = [
+        {name: 'Dashboard', href: '/', icon: LayoutDashboard},
+        {
+            name: 'Applications',
+            icon: AppWindow,
+            children: [
+                {name: 'OIDC Clients', href: '/applications/oidc', protocol: 'oidc'},
+                {name: 'SAML Clients', href: '/applications/saml', protocol: 'saml'},
+            ]
+        },
+        {
+            name: 'Connections',
+            icon: Link2,
+            children: [
+                {name: 'OIDC Providers', href: '/connections/oidc', protocol: 'oidc'},
+                {name: 'SAML Providers', href: '/connections/saml', protocol: 'saml'},
+                {name: 'LDAP Providers', href: '/connections/ldap', protocol: 'ldap'},
+            ]
+        },
+        {name: 'Tenants', href: '/tenants', icon: Building2},
+        {name: 'Scopes', href: '/scopes', icon: Fingerprint},
+        {name: 'Outbound Policies', href: '/outbound-policies', icon: ShieldAlert},
+    ];
+
+    if (isBrandingEEEnabled()) {
+        navigation.push({name: 'Branding', href: '/branding', icon: Palette});
+    }
+
+    navigation.push({name: 'Settings', href: '/settings', icon: SettingsIcon});
+
+    return navigation;
+};
 
 function NavItem({item, mobile, onClose}) {
     const location = useLocation();
@@ -98,7 +110,11 @@ function NavItem({item, mobile, onClose}) {
                             >
                 <span className={cn(
                     'w-2 h-2 rounded-full',
-                    child.protocol === 'oidc' ? 'bg-teal-500' : 'bg-orange-500'
+                    child.protocol === 'oidc'
+                        ? 'bg-teal-500'
+                        : child.protocol === 'saml'
+                            ? 'bg-orange-500'
+                            : 'bg-sky-500'
                 )}/>
                                 {child.name}
                             </Link>
@@ -129,12 +145,14 @@ function NavItem({item, mobile, onClose}) {
 }
 
 function Sidebar({mobile = false, onClose}) {
+    const navigation = getNavigation();
+
     return (
         <div className="flex h-full flex-col">
             {/* Logo */}
             <div className="flex h-16 items-center gap-3 px-6 border-b border-border/40">
                 <img
-                    src={window._env_.SHYNTR_PATH_PREFIX + "mascot.png"}
+                    src={window._env_.SHYNTR_PATH_PREFIX + "logo-primary.svg"}
                     alt="Shyntr Mascot"
                     className="h-10 w-10 object-contain"
                 />
@@ -155,7 +173,7 @@ function Sidebar({mobile = false, onClose}) {
             {/* Footer */}
             <div className="border-t border-border/40 p-4">
                 <div className="text-xs text-muted-foreground">
-                    <p className="font-medium">Shyntr v1.0</p>
+                    <p className="font-medium">Shyntr v1.1</p>
                     <p className="mt-1 opacity-70">Protocol-Agnostic Auth</p>
                 </div>
             </div>
@@ -204,7 +222,7 @@ export function Layout({children}) {
 
                 <div className="flex items-center gap-2">
                     <img
-                        src={window._env_.SHYNTR_PATH_PREFIX + "mascot.png"}
+                        src={window._env_.SHYNTR_PATH_PREFIX + "logo-primary.svg"}
                         alt="Shyntr"
                         className="h-8 w-8 object-contain"
                     />

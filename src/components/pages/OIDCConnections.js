@@ -65,6 +65,14 @@ const defaultConnection = {
   attribute_mapping: {}
 };
 
+const normalizeConnectionForForm = (connection) => ({
+  ...defaultConnection,
+  ...connection,
+  scopes: Array.isArray(connection?.scopes) ? connection.scopes : defaultConnection.scopes,
+  attribute_mapping: connection?.attribute_mapping || {},
+  client_secret: '',
+});
+
 export function OIDCConnections() {
   const [connections, setConnections] = useState([]);
   const [attributeMappingJson, setAttributeMappingJson] = useState({});
@@ -198,7 +206,7 @@ export function OIDCConnections() {
       return;
     }
 
-    setFormData(connection);
+    setFormData(normalizeConnectionForForm(connection));
     setAttributeMappingJson(connection.attribute_mapping || {});
     setSelectedConnection(connection);
     setAdvancedOpen(!!connection.authorization_endpoint || !!connection.token_endpoint || !!connection.userinfo_endpoint);
@@ -223,7 +231,7 @@ export function OIDCConnections() {
     setIsDeleting(true);
 
     try {
-      await deleteOIDCConnection(selectedConnection.id, selectedConnection.tenant_id);
+      await deleteOIDCConnection(selectedConnection.tenant_id, selectedConnection.id);
       toast.success('OIDC connection deleted successfully');
       await fetchConnections();
     } catch (error) {
@@ -254,6 +262,10 @@ export function OIDCConnections() {
       toast.error('Client ID is required');
       return;
     }
+    if (!formData.tenant_id.trim()) {
+      toast.error('Tenant is required');
+      return;
+    }
 
     let attributeMapping = {};
     try {
@@ -265,6 +277,7 @@ export function OIDCConnections() {
 
     const submitData = {
       ...formData,
+      client_secret: isEditing && !formData.client_secret.trim() ? '' : formData.client_secret,
       attribute_mapping: attributeMapping
     };
 
@@ -485,7 +498,7 @@ export function OIDCConnections() {
               <Select
                   value={formData.tenant_id}
                   onValueChange={(value) => setFormData({ ...formData, tenant_id: value })}
-                disabled={isSubmitting}
+                disabled={isSubmitting || isEditing}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select a tenant" />
@@ -498,6 +511,11 @@ export function OIDCConnections() {
                   ))}
                 </SelectContent>
               </Select>
+              {isEditing && (
+                <p className="text-xs text-muted-foreground">
+                  Tenant cannot be changed during edit because update and delete operations are tenant-scoped.
+                </p>
+              )}
             </div>
 
             <div className="space-y-2">
@@ -532,9 +550,14 @@ export function OIDCConnections() {
                 <SecretInput
                   value={formData.client_secret}
                   onChange={(e) => setFormData({ ...formData, client_secret: e.target.value })}
-                  placeholder="Enter client secret"
+                  placeholder={isEditing ? 'Leave blank to keep the existing client secret' : 'Enter client secret'}
                   testId="oidc-connection-client-secret-input"
                 />
+                {isEditing && (
+                  <p className="text-xs text-muted-foreground">
+                    Leave blank to preserve the existing client secret.
+                  </p>
+                )}
               </div>
             </div>
 

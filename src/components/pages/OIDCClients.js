@@ -255,7 +255,7 @@ export function OIDCClients() {
         setIsDeleting(true);
 
         try {
-            await deleteOIDCClient(selectedClient.client_id, selectedClient.tenant_id);
+            await deleteOIDCClient(selectedClient.tenant_id, selectedClient.client_id);
             toast.success('Client deleted successfully');
             await fetchClients();
         } catch (error) {
@@ -276,6 +276,10 @@ export function OIDCClients() {
 
         if (!formData.client_id.trim()) {
             toast.error('Client ID is required');
+            return;
+        }
+        if (!formData.tenant_id.trim()) {
+            toast.error('Tenant is required');
             return;
         }
 
@@ -544,7 +548,7 @@ export function OIDCClients() {
                                     <Select
                                         value={formData.tenant_id}
                                         onValueChange={(value) => setFormData({...formData, tenant_id: value})}
-                                        disabled={isSubmitting}
+                                        disabled={isSubmitting || isEditing}
                                     >
                                         <SelectTrigger data-testid="oidc-tenant-select">
                                             <SelectValue placeholder="Select a tenant"/>
@@ -557,6 +561,11 @@ export function OIDCClients() {
                                             ))}
                                         </SelectContent>
                                     </Select>
+                                    {isEditing && (
+                                        <p className="text-xs text-muted-foreground">
+                                            Tenant cannot be changed during edit because update and delete operations are tenant-scoped.
+                                        </p>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2">
