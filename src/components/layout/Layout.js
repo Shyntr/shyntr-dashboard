@@ -12,6 +12,7 @@ import {
     Fingerprint,
     ShieldAlert,
     Palette,
+    KeyRound,
     Settings as SettingsIcon
 } from 'lucide-react';
 import {Button} from '../ui/button';
@@ -19,7 +20,7 @@ import {Sheet, SheetContent, SheetTrigger} from '../ui/sheet';
 import {Collapsible, CollapsibleContent, CollapsibleTrigger} from '../ui/collapsible';
 import {useTheme} from '../../context/ThemeContext';
 import {cn} from '../../lib/utils';
-import {isBrandingEEEnabled} from '../../lib/env';
+import {isBrandingEEEnabled, isPasswordLoginEEEnabled} from '../../lib/env';
 
 const getNavigation = () => {
     const navigation = [
@@ -48,6 +49,10 @@ const getNavigation = () => {
 
     if (isBrandingEEEnabled()) {
         navigation.push({name: 'Branding', href: '/branding', icon: Palette});
+    }
+
+    if (isPasswordLoginEEEnabled()) {
+        navigation.push({name: 'Password Login', href: '/password-login', icon: KeyRound});
     }
 
     navigation.push({name: 'Settings', href: '/settings', icon: SettingsIcon});

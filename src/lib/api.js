@@ -119,4 +119,17 @@ export const publishBranding = (tenantId) => api.post(`/tenants/${tenantId}/bran
 export const discardBranding = (tenantId) => api.post(`/tenants/${tenantId}/branding/discard`);
 export const resetBranding = (tenantId, target) => api.post(`/tenants/${tenantId}/branding/reset`, { target });
 
+// Password Login
+export const getPasswordLoginEndpoints = () => api.get('/password-login/endpoints');
+export const createPasswordLoginEndpoint = (data) => api.post('/password-login/endpoints', data);
+export const updatePasswordLoginEndpoint = (id, data) => api.put(`/password-login/endpoints/${id}`, data);
+export const deletePasswordLoginEndpoint = (id) => api.delete(`/password-login/endpoints/${id}`);
+
+export const getPasswordLoginAssignments = (tenantId) => api.get('/password-login/assignments', {
+  params: tenantId ? { tenant_id: tenantId } : undefined,
+});
+export const createPasswordLoginAssignment = (data) => api.post('/password-login/assignments', data);
+export const updatePasswordLoginAssignment = (id, data) => api.put(`/password-login/assignments/${id}`, data);
+export const deletePasswordLoginAssignment = (id) => api.delete(`/password-login/assignments/${id}`);
+
 export default api;
