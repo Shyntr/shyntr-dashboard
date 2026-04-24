@@ -1,16 +1,8 @@
-const EMPTY_ENDPOINT_NAME_ERROR = 'Name is required';
-const EMPTY_ENDPOINT_URL_ERROR = 'Login URL is required';
-const INVALID_ENDPOINT_URL_ERROR = 'Login URL must be an absolute http or https URL';
+const EMPTY_LOGIN_URL_ERROR = 'Login URL is required';
+const INVALID_LOGIN_URL_ERROR = 'Login URL must be an absolute http or https URL';
 
-export const PASSWORD_LOGIN_ENDPOINT_FORM_DEFAULTS = {
-    name: '',
+export const PASSWORD_LOGIN_FORM_DEFAULTS = {
     login_url: '',
-    is_active: true,
-};
-
-export const PASSWORD_LOGIN_ASSIGNMENT_FORM_DEFAULTS = {
-    password_login_endpoint_id: '',
-    enabled: true,
 };
 
 const parseTimestamp = (value) => {
@@ -18,30 +10,24 @@ const parseTimestamp = (value) => {
     return Number.isNaN(timestamp) ? 0 : timestamp;
 };
 
-export const normalizePasswordLoginEndpointForm = (formData) => ({
-    name: (formData?.name || '').trim(),
+export const normalizePasswordLoginForm = (formData) => ({
     login_url: (formData?.login_url || '').trim(),
-    is_active: formData?.is_active !== false,
 });
 
-export const validatePasswordLoginEndpointForm = (formData) => {
-    const normalized = normalizePasswordLoginEndpointForm(formData);
-
-    if (!normalized.name) {
-        return EMPTY_ENDPOINT_NAME_ERROR;
-    }
+export const validatePasswordLoginForm = (formData) => {
+    const normalized = normalizePasswordLoginForm(formData);
 
     if (!normalized.login_url) {
-        return EMPTY_ENDPOINT_URL_ERROR;
+        return EMPTY_LOGIN_URL_ERROR;
     }
 
     try {
         const url = new URL(normalized.login_url);
         if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-            return INVALID_ENDPOINT_URL_ERROR;
+            return INVALID_LOGIN_URL_ERROR;
         }
     } catch {
-        return INVALID_ENDPOINT_URL_ERROR;
+        return INVALID_LOGIN_URL_ERROR;
     }
 
     return null;
@@ -61,7 +47,11 @@ export const formatPasswordLoginStatus = (assignment, endpoint) => {
     }
 
     if (!endpoint.is_active) {
-        return {label: 'Endpoint inactive', variant: 'secondary'};
+        return {label: 'Disabled', variant: 'secondary'};
+    }
+
+    if (!endpoint.login_url) {
+        return {label: 'Not configured', variant: 'outline'};
     }
 
     return {label: 'Active', variant: 'default'};
@@ -73,10 +63,9 @@ const compareAssignments = (endpointById) => (left, right) => {
 
     const statusRank = {
         Active: 4,
-        'Endpoint inactive': 3,
-        Disabled: 2,
-        'Endpoint missing': 1,
-        'Not configured': 0,
+        Disabled: 3,
+        'Endpoint missing': 2,
+        'Not configured': 1,
     };
 
     const rankDiff = (statusRank[rightStatus.label] || 0) - (statusRank[leftStatus.label] || 0);
@@ -95,27 +84,26 @@ export const selectPreferredAssignment = (assignments, endpointById) => {
     return assignments.slice().sort(compareAssignments(endpointById))[0];
 };
 
+export const isPasswordLoginActive = (assignment, endpoint) => (
+    Boolean(assignment?.enabled && endpoint?.is_active && endpoint?.login_url)
+);
+
 export const buildPasswordLoginManagementModel = ({tenants = [], endpoints = [], assignments = []}) => {
     const endpointById = new Map(endpoints.map((endpoint) => [endpoint.id, endpoint]));
+    const endpointUsageCount = assignments.reduce((counts, assignment) => {
+        const endpointId = assignment.password_login_endpoint_id;
+        counts[endpointId] = (counts[endpointId] || 0) + 1;
+        return counts;
+    }, {});
 
-    const endpointRows = endpoints
-        .slice()
-        .sort((left, right) => left.name.localeCompare(right.name))
-        .map((endpoint) => ({
-            ...endpoint,
-            usageCount: assignments.filter((assignment) => assignment.password_login_endpoint_id === endpoint.id).length,
-            status: endpoint.is_active
-                ? {label: 'Active', variant: 'default'}
-                : {label: 'Disabled', variant: 'secondary'},
-        }));
-
-    const globalAssignments = assignments.filter((assignment) => !assignment.tenant_id);
-    const globalAssignment = selectPreferredAssignment(globalAssignments, endpointById);
+    const globalAssignment = selectPreferredAssignment(
+        assignments.filter((assignment) => !assignment.tenant_id),
+        endpointById
+    );
     const globalEndpoint = globalAssignment
         ? endpointById.get(globalAssignment.password_login_endpoint_id) || null
         : null;
-    const globalStatus = formatPasswordLoginStatus(globalAssignment, globalEndpoint);
-    const globalResolved = Boolean(globalAssignment && globalAssignment.enabled && globalEndpoint?.is_active);
+    const globalActive = isPasswordLoginActive(globalAssignment, globalEndpoint);
 
     const tenantRows = tenants
         .slice()
@@ -128,47 +116,59 @@ export const buildPasswordLoginManagementModel = ({tenants = [], endpoints = [],
             const tenantEndpoint = tenantAssignment
                 ? endpointById.get(tenantAssignment.password_login_endpoint_id) || null
                 : null;
-            const tenantStatus = formatPasswordLoginStatus(tenantAssignment, tenantEndpoint);
-            const tenantResolved = Boolean(tenantAssignment && tenantAssignment.enabled && tenantEndpoint?.is_active);
+            const tenantActive = isPasswordLoginActive(tenantAssignment, tenantEndpoint);
 
-            let resolvedSource = 'None';
-            let resolvedEndpoint = null;
-            let resolvedStatus = {label: 'Not active', variant: 'outline'};
-            let resolutionDetail = 'Password login is not active for this tenant.';
-
-            if (tenantResolved) {
-                resolvedSource = 'Tenant-specific';
-                resolvedEndpoint = tenantEndpoint;
-                resolvedStatus = {label: 'Active', variant: 'default'};
-                resolutionDetail = 'Tenant Override';
-            } else if (globalResolved) {
-                resolvedSource = 'Global';
-                resolvedEndpoint = globalEndpoint;
-                resolvedStatus = {label: 'Inherited from Global', variant: 'outline'};
-                resolutionDetail = tenantAssignment
-                    ? 'Tenant override is not active; inherited from Global.'
-                    : 'Inherited from Global.';
-            } else if (tenantAssignment) {
-                resolutionDetail = 'Tenant override exists but does not activate password login.';
+            if (tenantActive) {
+                return {
+                    tenant,
+                    tenantAssignment,
+                    tenantEndpoint,
+                    resolvedEndpoint: tenantEndpoint,
+                    resolvedSource: 'Tenant-specific',
+                    status: {label: 'Active', variant: 'default'},
+                    detail: 'Tenant-specific password login URL is active.',
+                    canRemove: true,
+                };
             }
+
+            if (globalActive) {
+                return {
+                    tenant,
+                    tenantAssignment,
+                    tenantEndpoint,
+                    resolvedEndpoint: globalEndpoint,
+                    resolvedSource: 'Global',
+                    status: {label: 'Active', variant: 'outline'},
+                    detail: tenantAssignment
+                        ? 'Tenant configuration is not active; inherited Global Default is active.'
+                        : 'Inherited from Global Default.',
+                    canRemove: Boolean(tenantAssignment),
+                };
+            }
+
+            const status = tenantAssignment
+                ? formatPasswordLoginStatus(tenantAssignment, tenantEndpoint)
+                : {label: 'Not configured', variant: 'outline'};
 
             return {
                 tenant,
                 tenantAssignment,
                 tenantEndpoint,
-                tenantAssignmentStatus: tenantStatus,
-                resolvedSource,
-                resolvedEndpoint,
-                resolvedStatus,
-                resolutionDetail,
+                resolvedEndpoint: null,
+                resolvedSource: 'None',
+                status,
+                detail: tenantAssignment
+                    ? 'Password login is not active for this tenant.'
+                    : 'No password login URL is configured for this tenant.',
+                canRemove: Boolean(tenantAssignment),
             };
         });
 
     return {
-        endpointRows,
+        endpointById,
+        endpointUsageCount,
         globalAssignment,
         globalEndpoint,
-        globalStatus,
         tenantRows,
     };
 };
