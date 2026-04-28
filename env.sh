@@ -10,6 +10,7 @@ echo "  SHYNTR_MANAGEMENT_BACKEND_URL: \"${SHYNTR_MANAGEMENT_BACKEND_URL:-http:/
 echo "  SHYNTR_PUBLIC_BACKEND_URL: \"${SHYNTR_PUBLIC_BACKEND_URL:-http://localhost:7496}\"," >> $ENV_FILE
 echo "  SHYNTR_PATH_PREFIX: \"${SHYNTR_PATH_PREFIX:-/}\"," >> $ENV_FILE
 echo "  SHYNTR_EE_BRANDING_ENABLED: \"${SHYNTR_EE_BRANDING_ENABLED:-false}\"," >> $ENV_FILE
+echo "  SHYNTR_EE_PASSWORD_LOGIN_ENABLED: \"${SHYNTR_EE_PASSWORD_LOGIN_ENABLED:-false}\"," >> $ENV_FILE
 echo "};" >> $ENV_FILE
 
 echo "env-config.js is successfully created!"
