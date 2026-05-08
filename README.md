@@ -87,7 +87,7 @@ Check the [LICENSE](https://github.com/Shyntr/shyntr/blob/main/LICENSE) file for
 ---
 
 <div>
-  <a href="https://buymeacoffee.com/nevzatcirak17" target="_blank">
+  <a href="https://buymeacoffee.com/nevzatcirak" target="_blank">
     <img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="40" align="left">
   </a>
   <a href="https://nevzatcirak.com" target="_blank">
