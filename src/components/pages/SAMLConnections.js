@@ -59,6 +59,7 @@ const defaultConnection = {
   idp_encryption_certificate: '',
   sp_private_key: '',
   idp_metadata_xml: '',
+  name_id_format: '',
   sign_request: true,
   force_authn: false,
   attribute_mapping: {}
@@ -578,6 +579,17 @@ export function SAMLConnections() {
                         value={formData.idp_slo_url || ''}
                         onChange={(e) => setFormData({ ...formData, idp_slo_url: e.target.value })}
                         placeholder="https://dev-xxxx.okta.com/app/.../slo/saml"
+                        disabled={isSubmitting}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="idp-name-id-format">NameID Format</Label>
+                    <Input
+                        id="idp-name-id-format"
+                        value={formData.name_id_format || ''}
+                        onChange={(e) => setFormData({ ...formData, name_id_format: e.target.value })}
+                        placeholder="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
                         disabled={isSubmitting}
                     />
                   </div>

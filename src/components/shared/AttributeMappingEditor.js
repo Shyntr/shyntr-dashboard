@@ -32,13 +32,14 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
             type: val.type || 'string',
             fallback: val.fallback || '',
             value: val.value || '',
+            name_format: val.name_format || '',
             targetScopes: val.target_scopes ? val.target_scopes.join(', ') : '',
         }));
     });
 
     const [editingIndex, setEditingIndex] = useState(null);
     const [draftRule, setDraftRule] = useState({
-        target: '', source: '', type: 'string', fallback: '', value: '', targetScopes: ''
+        target: '', source: '', type: 'string', fallback: '', value: '', name_format: '', targetScopes: ''
     });
 
     const [availableScopes, setAvailableScopes] = useState([]);
@@ -52,7 +53,7 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
     }, [tenantId]);
 
     const handleAddNew = () => {
-        setDraftRule({target: '', source: '', type: 'string', fallback: '', value: '', targetScopes: ''});
+        setDraftRule({target: '', source: '', type: 'string', fallback: '', value: '', name_format: '', targetScopes: ''});
         setEditingIndex(-1);
     };
 
@@ -95,6 +96,7 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
                     type: r.type || 'string',
                     fallback: r.fallback || '',
                     value: r.value || '',
+                    name_format: r.name_format || '',
                     target_scopes: r.targetScopes ? r.targetScopes.split(',').map(s => s.trim()).filter(Boolean) : [],
                 };
             }
@@ -216,6 +218,17 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
                                 className="h-8 font-mono text-xs border-primary/30"
                                 value={draftRule.value}
                                 onChange={(e) => setDraftRule({...draftRule, value: e.target.value})}
+                            />
+                        </div>
+
+                        <div className="space-y-1.5">
+                            <Label className="text-xs text-muted-foreground">Name Format (Optional)</Label>
+                            <Input
+                                type="text"
+                                placeholder="urn:oasis:names:tc:SAML:2.0:attrname-format:uri"
+                                className="h-8 font-mono text-xs"
+                                value={draftRule.name_format}
+                                onChange={(e) => setDraftRule({...draftRule, name_format: e.target.value})}
                             />
                         </div>
 

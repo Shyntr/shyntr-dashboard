@@ -37,6 +37,7 @@ const defaultClient = {
     slo_url: '',
     sp_certificate: '',
     sp_encryption_certificate: '',
+    name_id_format: '',
     sign_response: true,
     sign_assertion: true,
     encrypt_assertion: false,
@@ -544,6 +545,19 @@ function SAMLClients() {
                                         disabled={isSubmitting}
                                     />
                                     <p className="text-xs text-muted-foreground">Optional: For Single Logout Support</p>
+                                </div>
+
+                                <div className="space-y-2">
+                                    <Label htmlFor="name-id-format">NameID Format</Label>
+                                    <Input
+                                        id="name-id-format"
+                                        value={formData.name_id_format || ''}
+                                        onChange={(e) => setFormData({ ...formData, name_id_format: e.target.value })}
+                                        placeholder="urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified"
+                                        data-testid="saml-name-id-format-input"
+                                        disabled={isSubmitting}
+                                    />
+                                    <p className="text-xs text-muted-foreground">Optional: NameID format URN sent in assertions</p>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
