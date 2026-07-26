@@ -46,6 +46,7 @@ import {CopyButton} from '../shared/CopyButton';
 import {SecretInput} from '../shared/SecretInput';
 import {MultiInput} from '../shared/MultiInput';
 import {ProtocolBadge} from '../shared/ProtocolBadge';
+import {AttributeMappingEditor} from '../shared/AttributeMappingEditor';
 import {
     getOIDCClients,
     createOIDCClient,
@@ -99,7 +100,8 @@ const defaultClient = {
     audience: [],
     public: false,
     enforce_pkce: true,
-    token_endpoint_auth_method: 'client_secret_basic'
+    token_endpoint_auth_method: 'client_secret_basic',
+    attribute_mapping: {}
 };
 
 export function OIDCClients() {
@@ -110,6 +112,7 @@ export function OIDCClients() {
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [selectedClient, setSelectedClient] = useState(null);
     const [formData, setFormData] = useState(defaultClient);
+    const [attributeMappingJson, setAttributeMappingJson] = useState({});
     const [isEditing, setIsEditing] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
@@ -216,6 +219,7 @@ export function OIDCClients() {
         }
 
         setFormData(defaultClient);
+        setAttributeMappingJson({});
         setSelectedClient(null);
         setIsEditing(false);
         setDialogOpen(true);
@@ -231,8 +235,10 @@ export function OIDCClients() {
             redirect_uris: client.redirect_uris?.length ? client.redirect_uris : [''],
             post_logout_redirect_uris: client.post_logout_redirect_uris?.length ? client.post_logout_redirect_uris : [''],
             allowed_cors_origins: client.allowed_cors_origins?.length ? client.allowed_cors_origins : [''],
-            audience: client.audience || []
+            audience: client.audience || [],
+            attribute_mapping: client.attribute_mapping || {}
         });
+        setAttributeMappingJson(client.attribute_mapping || {});
         setSelectedClient(client);
         setIsEditing(true);
         setDialogOpen(true);
@@ -289,7 +295,8 @@ export function OIDCClients() {
             allowed_cors_origins: formData.allowed_cors_origins.filter(o => o.trim()),
             post_logout_redirect_uris: (formData.post_logout_redirect_uris || []).filter(u => u.trim()),
             scopes: formData.scopes.filter(s => s.trim()),
-            audience: formData.audience.filter(a => a.trim())
+            audience: formData.audience.filter(a => a.trim()),
+            attribute_mapping: attributeMappingJson
         };
 
         setIsSubmitting(true);
@@ -738,6 +745,15 @@ export function OIDCClients() {
                                         placeholder="https://api.example.com"
                                         data-testid="oidc-audience-input"
                                         disabled={isSubmitting}
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <AttributeMappingEditor
+                                        initialRules={formData.attribute_mapping || {}}
+                                        onChange={setAttributeMappingJson}
+                                        subtitle={"Map user attributes to token claims"}
+                                        tenantId={formData.tenant_id}
                                     />
                                 </div>
                             </TabsContent>

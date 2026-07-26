@@ -660,6 +660,7 @@ function SAMLClients() {
                                         onChange={setAttributeMappingJson}
                                         subtitle={"Map SAML assertion attributes to standard claims"}
                                         tenantId={formData.tenant_id}
+                                        showNameFormat={true}
                                     />
                                 </div>
                             </TabsContent>

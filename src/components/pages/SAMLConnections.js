@@ -713,6 +713,7 @@ export function SAMLConnections() {
                         onChange={setAttributeMappingJson}
                         subtitle={"Map IdP SAML attributes to OIDC standard claims"}
                         tenantId={formData.tenant_id}
+                        showNameFormat={true}
                     />
                   </div>
                 </TabsContent>

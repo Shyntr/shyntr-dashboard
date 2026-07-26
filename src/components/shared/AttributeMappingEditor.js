@@ -24,7 +24,7 @@ const STANDARD_CLAIMS = [
     { value: 'groups', label: 'Groups (Array)' }
 ];
 
-export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = "", tenantId = "default"}) {
+export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = "", tenantId = "default", showNameFormat = false}) {
     const [rules, setRules] = useState(() => {
         return Object.entries(initialRules || {}).map(([key, val]) => ({
             target: key,
@@ -221,6 +221,7 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
                             />
                         </div>
 
+                        {showNameFormat && (
                         <div className="space-y-1.5">
                             <Label className="text-xs text-muted-foreground">Name Format (Optional)</Label>
                             <Input
@@ -231,6 +232,7 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
                                 onChange={(e) => setDraftRule({...draftRule, name_format: e.target.value})}
                             />
                         </div>
+                        )}
 
                         <div className="space-y-1.5 md:col-span-2 pt-2 border-t border-border/40 mt-1">
                             <Label className="text-xs text-emerald-500/80">Target Scopes (Auto-Bind)</Label>
