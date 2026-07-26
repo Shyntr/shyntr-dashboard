@@ -59,6 +59,8 @@ const defaultConnection = {
   group_search_filter: '',
   group_search_base_dn: '',
   attribute_mapping: {},
+  attribute_passthrough: false,
+  attribute_exclude: [],
   start_tls: false,
   tls_insecure_skip_verify: false,
 };
@@ -72,6 +74,8 @@ const normalizeConnectionForForm = (connection) => ({
     ? connection.user_search_attributes
     : [],
   attribute_mapping: connection?.attribute_mapping || {},
+  attribute_passthrough: connection?.attribute_passthrough ?? false,
+  attribute_exclude: Array.isArray(connection?.attribute_exclude) ? connection.attribute_exclude : [],
   bind_password: '',
 });
 
@@ -722,6 +726,10 @@ export function LDAPConnections() {
                   onChange={setAttributeMappingJson}
                   subtitle="Map LDAP attributes to internal claims and token fields"
                   tenantId={formData.tenant_id}
+                  attributePassthrough={formData.attribute_passthrough}
+                  onPassthroughChange={(checked) => setFormData((prev) => ({...prev, attribute_passthrough: checked}))}
+                  attributeExclude={formData.attribute_exclude || []}
+                  onExcludeChange={(vals) => setFormData((prev) => ({...prev, attribute_exclude: vals}))}
                 />
               </TabsContent>
             </Tabs>

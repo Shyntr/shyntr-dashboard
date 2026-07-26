@@ -42,7 +42,9 @@ const defaultClient = {
     sign_assertion: true,
     encrypt_assertion: false,
     force_authn: false,
-    attribute_mapping: {}
+    attribute_mapping: {},
+    attribute_passthrough: false,
+    attribute_exclude: []
 };
 
 function SAMLClients() {
@@ -176,7 +178,11 @@ function SAMLClients() {
             return;
         }
 
-        setFormData(client);
+        setFormData({
+            ...client,
+            attribute_passthrough: client.attribute_passthrough ?? false,
+            attribute_exclude: Array.isArray(client.attribute_exclude) ? client.attribute_exclude : [],
+        });
         setAttributeMappingJson(client.attribute_mapping || {});
         setSelectedClient(client);
         setIsEditing(true);
@@ -661,6 +667,10 @@ function SAMLClients() {
                                         subtitle={"Map SAML assertion attributes to standard claims"}
                                         tenantId={formData.tenant_id}
                                         showNameFormat={true}
+                                        attributePassthrough={formData.attribute_passthrough}
+                                        onPassthroughChange={(checked) => setFormData((prev) => ({...prev, attribute_passthrough: checked}))}
+                                        attributeExclude={formData.attribute_exclude || []}
+                                        onExcludeChange={(vals) => setFormData((prev) => ({...prev, attribute_exclude: vals}))}
                                     />
                                 </div>
                             </TabsContent>

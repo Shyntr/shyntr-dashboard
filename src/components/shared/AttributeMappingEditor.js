@@ -4,6 +4,8 @@ import {Button} from '../ui/button';
 import {Input} from '../ui/input';
 import {Label} from '../ui/label';
 import {Badge} from '../ui/badge';
+import {Switch} from '../ui/switch';
+import {MultiInput} from './MultiInput';
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '../ui/table';
@@ -24,7 +26,7 @@ const STANDARD_CLAIMS = [
     { value: 'groups', label: 'Groups (Array)' }
 ];
 
-export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = "", tenantId = "default", showNameFormat = false}) {
+export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = "", tenantId = "default", showNameFormat = false, attributePassthrough = false, onPassthroughChange, attributeExclude = [], onExcludeChange}) {
     const [rules, setRules] = useState(() => {
         return Object.entries(initialRules || {}).map(([key, val]) => ({
             target: key,
@@ -134,6 +136,31 @@ export function AttributeMappingEditor({initialRules = {}, onChange, subtitle = 
                         <Plus className="w-3.5 h-3.5 mr-1"/> Add Rule
                     </Button>
                 )}
+            </div>
+
+            <div className="space-y-4 rounded-lg border border-border bg-muted/20 p-4">
+                <div className="flex items-start justify-between gap-4">
+                    <div className="space-y-0.5">
+                        <Label>Pass through all attributes</Label>
+                        <p className="text-xs text-muted-foreground">
+                            When on, all released claims pass through; mapped sources are replaced by their targets. When off, only mapped targets are sent.
+                        </p>
+                    </div>
+                    <Switch
+                        checked={!!attributePassthrough}
+                        onCheckedChange={(checked) => onPassthroughChange && onPassthroughChange(checked)}
+                    />
+                </div>
+                <div className="space-y-1.5">
+                    <Label>Exclude attributes</Label>
+                    <p className="text-xs text-muted-foreground">Claim names to never send.</p>
+                    <MultiInput
+                        values={attributeExclude || []}
+                        onChange={(vals) => onExcludeChange && onExcludeChange(vals)}
+                        placeholder="e.g. groups"
+                        testId="attribute-exclude"
+                    />
+                </div>
             </div>
 
             {editingIndex !== null && (

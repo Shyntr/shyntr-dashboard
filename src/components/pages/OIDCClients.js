@@ -101,7 +101,9 @@ const defaultClient = {
     public: false,
     enforce_pkce: true,
     token_endpoint_auth_method: 'client_secret_basic',
-    attribute_mapping: {}
+    attribute_mapping: {},
+    attribute_passthrough: false,
+    attribute_exclude: []
 };
 
 export function OIDCClients() {
@@ -236,7 +238,9 @@ export function OIDCClients() {
             post_logout_redirect_uris: client.post_logout_redirect_uris?.length ? client.post_logout_redirect_uris : [''],
             allowed_cors_origins: client.allowed_cors_origins?.length ? client.allowed_cors_origins : [''],
             audience: client.audience || [],
-            attribute_mapping: client.attribute_mapping || {}
+            attribute_mapping: client.attribute_mapping || {},
+            attribute_passthrough: client.attribute_passthrough ?? false,
+            attribute_exclude: Array.isArray(client.attribute_exclude) ? client.attribute_exclude : [],
         });
         setAttributeMappingJson(client.attribute_mapping || {});
         setSelectedClient(client);
@@ -754,6 +758,10 @@ export function OIDCClients() {
                                         onChange={setAttributeMappingJson}
                                         subtitle={"Map user attributes to token claims"}
                                         tenantId={formData.tenant_id}
+                                        attributePassthrough={formData.attribute_passthrough}
+                                        onPassthroughChange={(checked) => setFormData((prev) => ({...prev, attribute_passthrough: checked}))}
+                                        attributeExclude={formData.attribute_exclude || []}
+                                        onExcludeChange={(vals) => setFormData((prev) => ({...prev, attribute_exclude: vals}))}
                                     />
                                 </div>
                             </TabsContent>

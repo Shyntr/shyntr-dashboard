@@ -62,7 +62,9 @@ const defaultConnection = {
   authorization_endpoint: '',
   token_endpoint: '',
   userinfo_endpoint: '',
-  attribute_mapping: {}
+  attribute_mapping: {},
+  attribute_passthrough: false,
+  attribute_exclude: []
 };
 
 const normalizeConnectionForForm = (connection) => ({
@@ -70,6 +72,8 @@ const normalizeConnectionForForm = (connection) => ({
   ...connection,
   scopes: Array.isArray(connection?.scopes) ? connection.scopes : defaultConnection.scopes,
   attribute_mapping: connection?.attribute_mapping || {},
+  attribute_passthrough: connection?.attribute_passthrough ?? false,
+  attribute_exclude: Array.isArray(connection?.attribute_exclude) ? connection.attribute_exclude : [],
   client_secret: '',
 });
 
@@ -597,7 +601,11 @@ export function OIDCConnections() {
               <CollapsibleContent className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <AttributeMappingEditor initialRules={formData.attribute_mapping || {}} onChange={setAttributeMappingJson}
-                                          subtitle={"Map external OIDC claims to standard internal claims"} tenantId={formData.tenant_id}/>
+                                          subtitle={"Map external OIDC claims to standard internal claims"} tenantId={formData.tenant_id}
+                                          attributePassthrough={formData.attribute_passthrough}
+                                          onPassthroughChange={(checked) => setFormData((prev) => ({...prev, attribute_passthrough: checked}))}
+                                          attributeExclude={formData.attribute_exclude || []}
+                                          onExcludeChange={(vals) => setFormData((prev) => ({...prev, attribute_exclude: vals}))}/>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   Override auto-discovered endpoints if needed

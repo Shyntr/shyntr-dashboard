@@ -62,13 +62,17 @@ const defaultConnection = {
   name_id_format: '',
   sign_request: true,
   force_authn: false,
-  attribute_mapping: {}
+  attribute_mapping: {},
+  attribute_passthrough: false,
+  attribute_exclude: []
 };
 
 const normalizeConnectionForForm = (connection) => ({
   ...defaultConnection,
   ...connection,
   attribute_mapping: connection?.attribute_mapping || {},
+  attribute_passthrough: connection?.attribute_passthrough ?? false,
+  attribute_exclude: Array.isArray(connection?.attribute_exclude) ? connection.attribute_exclude : [],
   sp_private_key: '',
 });
 
@@ -714,6 +718,10 @@ export function SAMLConnections() {
                         subtitle={"Map IdP SAML attributes to OIDC standard claims"}
                         tenantId={formData.tenant_id}
                         showNameFormat={true}
+                        attributePassthrough={formData.attribute_passthrough}
+                        onPassthroughChange={(checked) => setFormData((prev) => ({...prev, attribute_passthrough: checked}))}
+                        attributeExclude={formData.attribute_exclude || []}
+                        onExcludeChange={(vals) => setFormData((prev) => ({...prev, attribute_exclude: vals}))}
                     />
                   </div>
                 </TabsContent>
